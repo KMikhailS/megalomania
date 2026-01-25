@@ -1,41 +1,60 @@
-import {useState} from 'react'
-import {ProductCard, Cart, Favorites, Profile, BottomNavigation} from './components'
-
-const categories = ['Все', 'Платье', 'Худи', 'Комплекты']
-
-interface Product {
-    id: number
-    name: string
-    price: string
-}
-
-const products: Product[] = [
-    {
-        id: 1,
-        name: 'Комплект "Клава" Молочного цвета',
-        price: '8 500 ₽',
-    },
-    {
-        id: 2,
-        name: 'Комплект "Клава" Молочного цвета',
-        price: '8 500 ₽',
-    },
-    {
-        id: 3,
-        name: 'Комплект "Клава" Молочного цвета',
-        price: '8 500 ₽',
-    },
-    {
-        id: 4,
-        name: 'Комплект "Клава" Молочного цвета',
-        price: '8 500 ₽',
-    },
-]
+import {useState, useEffect, useMemo} from 'react'
+import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid} from './components'
+import type {Product} from './components'
+import {fetchGoods} from './api/client'
+import type {GoodDTO} from './api/client'
 
 function App() {
+    const [products, setProducts] = useState<Product[]>([])
     const [activeCategory, setActiveCategory] = useState('Все')
     const [activeTab, setActiveTab] = useState('home')
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+
+    // Уникальные категории из загруженных товаров
+    const categories = useMemo(() => {
+        const uniqueCategories = [...new Set(
+            products.map(p => p.category).filter((c): c is string => Boolean(c))
+        )]
+        return ['Все', ...uniqueCategories]
+    }, [products])
+
+    // Фильтрация товаров по категории
+    const filteredProducts = useMemo(() => {
+        if (activeCategory === 'Все') return products
+        return products.filter(p => p.category === activeCategory)
+    }, [products, activeCategory])
+
+    // Загрузка товаров с бэкенда
+    useEffect(() => {
+        const loadProducts = async () => {
+            try {
+                const goods = await fetchGoods()
+                const mappedProducts: Product[] = goods.map((good: GoodDTO) => {
+                    const sortedImages = (good.images || [])
+                        .sort((a, b) => a.display_order - b.display_order)
+                        .map(img => img.image_url)
+
+                    return {
+                        id: good.id,
+                        image: sortedImages[0] || '/images/menu.svg',
+                        images: sortedImages,
+                        name: good.name,
+                        price: `${good.price.toLocaleString('ru-RU')} ₽`,
+                        non_discount_price: good.non_discount_price
+                            ? `${good.non_discount_price.toLocaleString('ru-RU')} ₽`
+                            : undefined,
+                        description: good.description,
+                        category: good.category,
+                        status: good.status,
+                    }
+                })
+                setProducts(mappedProducts)
+            } catch (error) {
+                console.error('Failed to fetch goods:', error)
+            }
+        }
+        loadProducts()
+    }, [])
 
     // Показываем корзину
     if (activeTab === 'cart') {
@@ -171,41 +190,11 @@ function App() {
                 </div>
 
                 {/* Products Grid */}
-                <div className="grid grid-cols-2 gap-4 px-4">
-                    {products.map((product) => (
-                        <div
-                            key={product.id}
-                            className="relative cursor-pointer"
-                            onClick={() => setSelectedProduct(product)}
-                        >
-                            <div className="relative border border-black">
-                                <img
-                                    src="/images/menu.svg"
-                                    alt={product.name}
-                                    className="w-full h-[212px] object-cover"
-                                />
-                                <button
-                                    className="absolute top-3 right-3"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        console.log('Добавлено в избранное:', product.name)
-                                    }}
-                                >
-                                    <svg width="21" height="19" viewBox="0 0 21 19" fill="none">
-                                        <path
-                                            d="M10.5 19L9.0225 17.653C3.78 12.8385 0 9.39575 0 5.22951C0 1.78675 2.646 -0.75 6.09 -0.75C8.022 -0.75 9.8805 0.16575 10.5 1.56525C11.1195 0.16575 12.978 -0.75 14.91 -0.75C18.354 -0.75 21 1.78675 21 5.22951C21 9.39575 17.22 12.8385 11.9775 17.653L10.5 19Z"
-                                            fill="black"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div className="mt-2 text-center">
-                                <p className="text-xs tracking-wide leading-tight">{product.name}</p>
-                                <p className="text-sm font-bold mt-1">{product.price}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <ProductGrid
+                    products={filteredProducts}
+                    onProductClick={setSelectedProduct}
+                    onFavorite={(product) => console.log('Добавлено в избранное:', product.name)}
+                />
             </main>
 
             {/* Bottom Navigation */}

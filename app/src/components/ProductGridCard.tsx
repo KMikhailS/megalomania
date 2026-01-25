@@ -1,0 +1,64 @@
+import React from 'react';
+
+export interface Product {
+  id: number;
+  image: string;
+  images?: string[];
+  name: string;
+  price: string;
+  non_discount_price?: string;
+  description: string;
+  category?: string;
+  status?: string;
+}
+
+interface ProductGridCardProps {
+  product: Product;
+  onClick: (product: Product) => void;
+  onFavorite?: (product: Product) => void;
+}
+
+const ProductGridCard: React.FC<ProductGridCardProps> = ({ product, onClick, onFavorite }) => {
+  return (
+    <div
+      className="relative cursor-pointer"
+      onClick={() => onClick(product)}
+    >
+      <div className="relative border border-black">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-[212px] object-cover bg-gray-100"
+          loading="lazy"
+        />
+        {onFavorite && (
+          <button
+            className="absolute top-3 right-3"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFavorite(product);
+            }}
+          >
+            <svg width="21" height="19" viewBox="0 0 21 19" fill="none">
+              <path
+                d="M10.5 19L9.0225 17.653C3.78 12.8385 0 9.39575 0 5.22951C0 1.78675 2.646 -0.75 6.09 -0.75C8.022 -0.75 9.8805 0.16575 10.5 1.56525C11.1195 0.16575 12.978 -0.75 14.91 -0.75C18.354 -0.75 21 1.78675 21 5.22951C21 9.39575 17.22 12.8385 11.9775 17.653L10.5 19Z"
+                fill="black"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
+      <div className="mt-2 text-center">
+        <p className="text-xs tracking-wide leading-tight">{product.name}</p>
+        <div className="flex items-center justify-center gap-2 mt-1">
+          <span className="text-sm font-bold">{product.price}</span>
+          {product.non_discount_price && (
+            <span className="text-xs text-gray-400 line-through">{product.non_discount_price}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProductGridCard;
