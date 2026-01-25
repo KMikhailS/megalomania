@@ -1,14 +1,109 @@
-import {useState, useEffect, useMemo} from 'react'
-import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid} from './components'
+import {useState, useEffect, useMemo, useCallback} from 'react'
+import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard} from './components'
 import type {Product} from './components'
-import {fetchGoods} from './api/client'
-import type {GoodDTO, ImageDTO} from './api/client'
+import {fetchGoods, fetchUserInfo, createGoodCard, addGoodImages} from './api/client'
+import type {GoodDTO, ImageDTO, UserInfo} from './api/client'
+import {useTelegramWebApp} from './hooks/useTelegramWebApp'
 
 function App() {
+    const {webApp} = useTelegramWebApp()
+
+    const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
     const [products, setProducts] = useState<Product[]>([])
     const [activeCategory, setActiveCategory] = useState('Все')
     const [activeTab, setActiveTab] = useState('home')
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+    const [isAdminCardOpen, setIsAdminCardOpen] = useState(false)
+
+    const isAdminMode = userInfo?.mode === 'ADMIN'
+
+    const handleAddNewCard = () => {
+        setIsAdminCardOpen(true)
+    }
+
+    // Функция загрузки товаров
+    const loadProducts = useCallback(async () => {
+        try {
+            const goods = await fetchGoods()
+            const mappedProducts: Product[] = goods.map((good: GoodDTO) => {
+                const sortedImages = (good.images || [])
+                    .sort((a: ImageDTO, b: ImageDTO) => a.display_order - b.display_order)
+                    .map((img: ImageDTO) => img.image_url)
+
+                return {
+                    id: good.id,
+                    image: sortedImages[0] || '/images/menu.svg',
+                    images: sortedImages,
+                    name: good.name,
+                    price: `${good.price.toLocaleString('ru-RU')} ₽`,
+                    non_discount_price: good.non_discount_price
+                        ? `${good.non_discount_price.toLocaleString('ru-RU')} ₽`
+                        : undefined,
+                    description: good.description,
+                    category: good.category,
+                    status: good.status,
+                }
+            })
+            setProducts(mappedProducts)
+        } catch (error) {
+            console.error('Failed to fetch goods:', error)
+        }
+    }, [])
+
+    // Сохранение товара из админ-панели
+    const handleSaveAdminCard = async (data: {
+        id?: number;
+        name: string;
+        category: string;
+        price: number;
+        non_discount_price?: number;
+        description: string;
+        imageFiles: File[];
+    }) => {
+        if (!webApp?.initData) {
+            alert('Ошибка авторизации')
+            return
+        }
+
+        try {
+            // Создаём товар
+            const createdGood = await createGoodCard(
+                {
+                    name: data.name,
+                    category: data.category,
+                    price: data.price,
+                    non_discount_price: data.non_discount_price,
+                    description: data.description,
+                },
+                webApp.initData
+            )
+
+            // Если есть изображения, загружаем их
+            if (data.imageFiles.length > 0) {
+                await addGoodImages(createdGood.id, data.imageFiles, webApp.initData)
+            }
+
+            setIsAdminCardOpen(false)
+            alert('Товар успешно добавлен!')
+
+            // Обновляем список товаров
+            await loadProducts()
+        } catch (error) {
+            console.error('Failed to save good card:', error)
+            alert('Ошибка при сохранении товара')
+        }
+    }
+
+    // Загрузка информации о пользователе
+    useEffect(() => {
+        if (!webApp?.initData) return
+
+        fetchUserInfo(webApp.initData)
+            .then(setUserInfo)
+            .catch((error) => {
+                console.error('Failed to fetch user info:', error)
+            })
+    }, [webApp])
 
     // Уникальные категории из загруженных товаров
     const categories = useMemo(() => {
@@ -26,35 +121,8 @@ function App() {
 
     // Загрузка товаров с бэкенда
     useEffect(() => {
-        const loadProducts = async () => {
-            try {
-                const goods = await fetchGoods()
-                const mappedProducts: Product[] = goods.map((good: GoodDTO) => {
-                    const sortedImages = (good.images || [])
-                        .sort((a: ImageDTO, b: ImageDTO) => a.display_order - b.display_order)
-                        .map((img: ImageDTO) => img.image_url)
-
-                    return {
-                        id: good.id,
-                        image: sortedImages[0] || '/images/menu.svg',
-                        images: sortedImages,
-                        name: good.name,
-                        price: `${good.price.toLocaleString('ru-RU')} ₽`,
-                        non_discount_price: good.non_discount_price
-                            ? `${good.non_discount_price.toLocaleString('ru-RU')} ₽`
-                            : undefined,
-                        description: good.description,
-                        category: good.category,
-                        status: good.status,
-                    }
-                })
-                setProducts(mappedProducts)
-            } catch (error) {
-                console.error('Failed to fetch goods:', error)
-            }
-        }
         loadProducts()
-    }, [])
+    }, [loadProducts])
 
     // Показываем корзину
     if (activeTab === 'cart') {
@@ -194,6 +262,8 @@ function App() {
                     products={filteredProducts}
                     onProductClick={setSelectedProduct}
                     onFavorite={(product) => console.log('Добавлено в избранное:', product.name)}
+                    isAdminMode={isAdminMode}
+                    onAddNewCard={handleAddNewCard}
                 />
             </main>
 
