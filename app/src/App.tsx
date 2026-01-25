@@ -2,7 +2,7 @@ import {useState, useEffect, useMemo} from 'react'
 import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid} from './components'
 import type {Product} from './components'
 import {fetchGoods} from './api/client'
-import type {GoodDTO} from './api/client'
+import type {GoodDTO, ImageDTO} from './api/client'
 
 function App() {
     const [products, setProducts] = useState<Product[]>([])
@@ -31,8 +31,8 @@ function App() {
                 const goods = await fetchGoods()
                 const mappedProducts: Product[] = goods.map((good: GoodDTO) => {
                     const sortedImages = (good.images || [])
-                        .sort((a, b) => a.display_order - b.display_order)
-                        .map(img => img.image_url)
+                        .sort((a: ImageDTO, b: ImageDTO) => a.display_order - b.display_order)
+                        .map((img: ImageDTO) => img.image_url)
 
                     return {
                         id: good.id,
