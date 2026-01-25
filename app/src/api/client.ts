@@ -158,3 +158,115 @@ export async function addGoodImages(
   const data = await response.json();
   return data.imageUrls;
 }
+
+/**
+ * Update existing good card (ADMIN only)
+ */
+export async function updateGoodCard(
+  goodId: number,
+  goodCardData: GoodCardData,
+  initData: string
+): Promise<GoodDTO> {
+  const response = await fetch(`${API_BASE_URL}/goods/${goodId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(goodCardData),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update good card: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete good (ADMIN only)
+ */
+export async function deleteGood(
+  goodId: number,
+  initData: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/goods/${goodId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete good: ${response.status} ${errorText}`);
+  }
+}
+
+/**
+ * Block good - set status to BLOCKED (ADMIN only)
+ */
+export async function blockGood(
+  goodId: number,
+  initData: string
+): Promise<GoodDTO> {
+  const response = await fetch(`${API_BASE_URL}/goods/${goodId}/block`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to block good: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Activate good - set status to NEW (ADMIN only)
+ */
+export async function activateGood(
+  goodId: number,
+  initData: string
+): Promise<GoodDTO> {
+  const response = await fetch(`${API_BASE_URL}/goods/${goodId}/activate`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to activate good: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all goods regardless of status (for admin)
+ */
+export async function fetchAllGoods(initData: string): Promise<GoodDTO[]> {
+  const response = await fetch(`${API_BASE_URL}/goods/all`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch all goods: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}

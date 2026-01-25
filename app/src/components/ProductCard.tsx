@@ -3,19 +3,25 @@ import { useState, useEffect, useRef } from 'react'
 interface ProductCardProps {
   name: string
   price: string
+  image?: string
   sizes?: string[]
   onBack?: () => void
   onAddToCart?: () => void
   onSaveForLater?: () => void
+  isAdmin?: boolean
+  onEdit?: () => void
 }
 
 export function ProductCard({
   name,
   price,
+  image,
   sizes = ['S', 'M', 'L', 'XL'],
   onBack,
   onAddToCart,
   onSaveForLater,
+  isAdmin,
+  onEdit,
 }: ProductCardProps) {
   const [selectedSize, setSelectedSize] = useState(sizes[2] || 'L')
   const [isSizeOpen, setIsSizeOpen] = useState(false)
@@ -45,7 +51,7 @@ export function ProductCard({
       {/* Product Image */}
       <div className="relative">
         <img
-          src="/images/menu.svg"
+          src={image || '/images/placeholder.png'}
           alt={name}
           className="w-full h-[545px] object-cover"
         />
@@ -56,6 +62,15 @@ export function ProductCard({
         >
           <img src="/images/menu.svg" alt="Назад" className="w-[15px] h-[26px]" />
         </button>
+        {/* Edit Button (Admin only) */}
+        {isAdmin && onEdit && (
+          <button
+            onClick={onEdit}
+            className="absolute top-[45px] right-[29px] bg-black/70 text-white px-3 py-1.5 rounded-lg text-sm font-medium"
+          >
+            Редактировать
+          </button>
+        )}
       </div>
 
       {/* Size and Save Buttons */}

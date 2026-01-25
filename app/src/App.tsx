@@ -1,7 +1,7 @@
 import {useState, useEffect, useMemo, useCallback} from 'react'
 import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard} from './components'
 import type {Product} from './components'
-import {fetchGoods, fetchUserInfo, createGoodCard, addGoodImages} from './api/client'
+import {fetchGoods, fetchUserInfo, createGoodCard, addGoodImages, updateGoodCard, deleteGood, blockGood, activateGood, fetchAllGoods} from './api/client'
 import type {GoodDTO, ImageDTO, UserInfo} from './api/client'
 import {useTelegramWebApp} from './hooks/useTelegramWebApp'
 
@@ -14,17 +14,22 @@ function App() {
     const [activeTab, setActiveTab] = useState('home')
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [isAdminCardOpen, setIsAdminCardOpen] = useState(false)
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
     const isAdminMode = userInfo?.mode === 'ADMIN'
 
     const handleAddNewCard = () => {
+        setEditingProduct(null)
         setIsAdminCardOpen(true)
     }
 
     // Функция загрузки товаров
     const loadProducts = useCallback(async () => {
         try {
-            const goods = await fetchGoods()
+            // Для админа загружаем все товары (включая заблокированные)
+            const goods = isAdminMode && webApp?.initData
+                ? await fetchAllGoods(webApp.initData)
+                : await fetchGoods()
             const mappedProducts: Product[] = goods.map((good: GoodDTO) => {
                 const sortedImages = (good.images || [])
                     .sort((a: ImageDTO, b: ImageDTO) => a.display_order - b.display_order)
@@ -48,7 +53,7 @@ function App() {
         } catch (error) {
             console.error('Failed to fetch goods:', error)
         }
-    }, [])
+    }, [isAdminMode, webApp])
 
     // Сохранение товара из админ-панели
     const handleSaveAdminCard = async (data: {
@@ -66,31 +71,97 @@ function App() {
         }
 
         try {
-            // Создаём товар
-            const createdGood = await createGoodCard(
-                {
-                    name: data.name,
-                    category: data.category,
-                    price: data.price,
-                    non_discount_price: data.non_discount_price,
-                    description: data.description,
-                },
-                webApp.initData
-            )
+            let goodId: number
 
-            // Если есть изображения, загружаем их
+            if (data.id) {
+                // Обновляем существующий товар
+                const updatedGood = await updateGoodCard(
+                    data.id,
+                    {
+                        name: data.name,
+                        category: data.category,
+                        price: data.price,
+                        non_discount_price: data.non_discount_price,
+                        description: data.description,
+                    },
+                    webApp.initData
+                )
+                goodId = updatedGood.id
+            } else {
+                // Создаём новый товар
+                const createdGood = await createGoodCard(
+                    {
+                        name: data.name,
+                        category: data.category,
+                        price: data.price,
+                        non_discount_price: data.non_discount_price,
+                        description: data.description,
+                    },
+                    webApp.initData
+                )
+                goodId = createdGood.id
+            }
+
+            // Если есть новые изображения, загружаем их
             if (data.imageFiles.length > 0) {
-                await addGoodImages(createdGood.id, data.imageFiles, webApp.initData)
+                await addGoodImages(goodId, data.imageFiles, webApp.initData)
             }
 
             setIsAdminCardOpen(false)
-            alert('Товар успешно добавлен!')
+            setEditingProduct(null)
+            alert(data.id ? 'Товар успешно обновлён!' : 'Товар успешно добавлен!')
 
             // Обновляем список товаров
             await loadProducts()
         } catch (error) {
             console.error('Failed to save good card:', error)
             alert('Ошибка при сохранении товара')
+        }
+    }
+
+    // Редактирование товара
+    const handleEditProduct = (product: Product) => {
+        setEditingProduct(product)
+        setSelectedProduct(null)
+        setIsAdminCardOpen(true)
+    }
+
+    // Удаление товара
+    const handleDeleteProduct = async () => {
+        if (!editingProduct || !webApp?.initData) return
+
+        if (!confirm('Вы уверены, что хотите удалить этот товар?')) return
+
+        try {
+            await deleteGood(editingProduct.id, webApp.initData)
+            setIsAdminCardOpen(false)
+            setEditingProduct(null)
+            alert('Товар успешно удалён!')
+            await loadProducts()
+        } catch (error) {
+            console.error('Failed to delete good:', error)
+            alert('Ошибка при удалении товара')
+        }
+    }
+
+    // Блокировка/Активация товара
+    const handleToggleBlockProduct = async () => {
+        if (!editingProduct || !webApp?.initData) return
+
+        try {
+            if (editingProduct.status === 'BLOCKED') {
+                await activateGood(editingProduct.id, webApp.initData)
+                alert('Товар активирован!')
+            } else {
+                await blockGood(editingProduct.id, webApp.initData)
+                alert('Товар заблокирован!')
+            }
+            setIsAdminCardOpen(false)
+            setEditingProduct(null)
+            await loadProducts()
+        } catch (error) {
+            console.error('Failed to toggle block status:', error)
+            alert('Ошибка при изменении статуса товара')
         }
     }
 
@@ -169,6 +240,7 @@ function App() {
                 <ProductCard
                     name={selectedProduct.name}
                     price={selectedProduct.price}
+                    image={selectedProduct.image}
                     onBack={() => setSelectedProduct(null)}
                     onAddToCart={() => {
                         console.log('Добавлено в корзину:', selectedProduct.name)
@@ -176,6 +248,8 @@ function App() {
                     onSaveForLater={() => {
                         console.log('Отложено:', selectedProduct.name)
                     }}
+                    isAdmin={isAdminMode}
+                    onEdit={() => handleEditProduct(selectedProduct)}
                 />
                 <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
             </div>
@@ -273,8 +347,14 @@ function App() {
             {/* Admin Product Card Modal */}
             {isAdminCardOpen && (
                 <AdminProductCard
-                    onClose={() => setIsAdminCardOpen(false)}
+                    onClose={() => {
+                        setIsAdminCardOpen(false)
+                        setEditingProduct(null)
+                    }}
                     onSave={handleSaveAdminCard}
+                    editingProduct={editingProduct || undefined}
+                    onDelete={handleDeleteProduct}
+                    onToggleBlock={handleToggleBlockProduct}
                 />
             )}
         </div>

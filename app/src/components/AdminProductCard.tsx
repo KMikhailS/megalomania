@@ -15,9 +15,11 @@ interface AdminProductCardProps {
     imageFiles: File[];
   }) => void;
   editingProduct?: Product;
+  onDelete?: () => void;
+  onToggleBlock?: () => void;
 }
 
-const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, editingProduct }) => {
+const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, editingProduct, onDelete, onToggleBlock }) => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [priceRub, setPriceRub] = useState('');
@@ -305,6 +307,32 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
               Отмена
             </button>
           </div>
+
+          {/* Admin actions for editing existing product */}
+          {editingProduct && (
+            <div className="flex gap-3 mt-4">
+              {onToggleBlock && (
+                <button
+                  onClick={onToggleBlock}
+                  className={`flex-1 py-4 font-semibold rounded-lg ${
+                    editingProduct.status === 'BLOCKED'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-yellow-500 text-black'
+                  }`}
+                >
+                  {editingProduct.status === 'BLOCKED' ? 'Активировать' : 'Заблокировать'}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={onDelete}
+                  className="flex-1 py-4 bg-red-600 text-white font-semibold rounded-lg"
+                >
+                  Удалить
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
