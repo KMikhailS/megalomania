@@ -201,6 +201,38 @@ function App() {
         loadProducts()
     }, [loadProducts])
 
+    // Управление Telegram BackButton для навигации назад
+    useEffect(() => {
+        if (!webApp) return
+
+        const shouldShowBackButton = selectedProduct !== null || isAdminCardOpen
+
+        if (shouldShowBackButton) {
+            const handleBack = () => {
+                if (isAdminCardOpen) {
+                    setIsAdminCardOpen(false)
+                    setEditingProduct(null)
+                    if (adminReturnProduct) {
+                        setSelectedProduct(adminReturnProduct)
+                    }
+                    setAdminReturnProduct(null)
+                } else if (selectedProduct) {
+                    setSelectedProduct(null)
+                }
+            }
+
+            webApp.BackButton.onClick(handleBack)
+            webApp.BackButton.show()
+
+            return () => {
+                webApp.BackButton.offClick(handleBack)
+                webApp.BackButton.hide()
+            }
+        } else {
+            webApp.BackButton.hide()
+        }
+    }, [webApp, selectedProduct, isAdminCardOpen, adminReturnProduct])
+
     // Показываем корзину
     if (activeTab === 'cart') {
         return (
@@ -247,6 +279,7 @@ function App() {
                     name={selectedProduct.name}
                     price={selectedProduct.price}
                     image={selectedProduct.image}
+                    images={selectedProduct.images}
                     onBack={() => setSelectedProduct(null)}
                     onAddToCart={() => {
                         console.log('Добавлено в корзину:', selectedProduct.name)
