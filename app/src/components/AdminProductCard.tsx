@@ -173,7 +173,7 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
 
         {/* Image Section */}
         <div
-          className="relative h-[280px] bg-gray-100 flex items-center justify-center cursor-pointer border-b border-gray-200"
+          className="relative h-[360px] bg-gray-100 flex items-center justify-center cursor-pointer border-b border-gray-200"
           onClick={handleImageClick}
         >
           <input
@@ -189,7 +189,7 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
             <img
               src={previewUrls[0]}
               alt="Preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="text-center">
