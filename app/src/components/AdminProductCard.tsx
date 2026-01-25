@@ -34,6 +34,40 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
   const [isCreatingNewCategory, setIsCreatingNewCategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
+  // Image navigation state
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex(prev => prev === 0 ? previewUrls.length - 1 : prev - 1);
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex(prev => prev === previewUrls.length - 1 ? 0 : prev + 1);
+  };
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    if (distance > minSwipeDistance) {
+      handleNextImage();
+    } else if (distance < -minSwipeDistance) {
+      handlePrevImage();
+    }
+  };
+
   // При редактировании заполняем форму
   useEffect(() => {
     if (editingProduct) {
@@ -52,8 +86,10 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
       setDescription(editingProduct.description);
       if (editingProduct.images && editingProduct.images.length > 0) {
         setPreviewUrls(editingProduct.images);
+        setCurrentImageIndex(0);
       } else if (editingProduct.image) {
         setPreviewUrls([editingProduct.image]);
+        setCurrentImageIndex(0);
       }
     }
   }, [editingProduct]);
@@ -98,6 +134,7 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
     const urls = fileArray.map(file => URL.createObjectURL(file));
     setSelectedFiles(fileArray);
     setPreviewUrls(urls);
+    setCurrentImageIndex(0);
   };
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -177,6 +214,9 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
         <div
           className="relative h-[360px] bg-gray-100 flex items-center justify-center cursor-pointer border-b border-gray-200"
           onClick={handleImageClick}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           <input
             ref={fileInputRef}
@@ -189,7 +229,7 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
 
           {previewUrls.length > 0 ? (
             <img
-              src={previewUrls[0]}
+              src={previewUrls[currentImageIndex]}
               alt="Preview"
               className="w-full h-full object-contain"
             />
@@ -206,6 +246,42 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({ onClose, onSave, ed
                 <rect x="6" y="6" width="36" height="36" rx="4" stroke="#9CA3AF" strokeWidth="2" strokeDasharray="4 4"/>
               </svg>
               <p className="text-gray-500 text-sm">Добавить фото</p>
+            </div>
+          )}
+
+          {/* Navigation Arrows */}
+          {previewUrls.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
+                className="absolute top-1/2 left-2 -translate-y-1/2 w-[40px] h-[40px] flex items-center justify-center bg-black/30 rounded-full text-white hover:bg-black/50 transition-colors"
+              >
+                <svg width="12" height="20" viewBox="0 0 20 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5.77 17.96L19.21 31.4c.53.53.78 1.15.77 1.85-.02.71-.3 1.33-.83 1.86-.53.53-1.15.79-1.85.79-.71 0-1.33-.26-1.86-.79L1.27 20.98c-.42-.42-.74-.9-.95-1.43-.21-.53-.32-1.06-.32-1.59 0-.53.11-1.06.32-1.59.21-.53.53-1 .95-1.43L15.45.77c.53-.53 1.16-.79 1.88-.77.72.02 1.35.29 1.88.82.53.53.79 1.15.79 1.85 0 .71-.26 1.33-.79 1.86L5.77 17.96z" fill="currentColor"/>
+                </svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
+                className="absolute top-1/2 right-2 -translate-y-1/2 w-[40px] h-[40px] flex items-center justify-center bg-black/30 rounded-full text-white hover:bg-black/50 transition-colors"
+              >
+                <svg width="12" height="20" viewBox="0 0 20 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14.23 17.96L.79 31.4c-.53.53-.78 1.15-.77 1.85.02.71.3 1.33.83 1.86.53.53 1.15.79 1.85.79.71 0 1.33-.26 1.86-.79l14.18-14.13c.42-.42.74-.9.95-1.43.21-.53.32-1.06.32-1.59 0-.53-.11-1.06-.32-1.59-.21-.53-.53-1-.95-1.43L4.55.77c-.53-.53-1.16-.79-1.88-.77-.72.02-1.35.29-1.88.82-.53.53-.79 1.15-.79 1.85 0 .71.26 1.33.79 1.86l13.44 13.43z" fill="currentColor"/>
+                </svg>
+              </button>
+            </>
+          )}
+
+          {/* Pagination Dots */}
+          {previewUrls.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+              {previewUrls.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    index === currentImageIndex ? 'bg-black' : 'bg-black/30'
+                  }`}
+                />
+              ))}
             </div>
           )}
         </div>

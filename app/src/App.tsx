@@ -15,10 +15,12 @@ function App() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [isAdminCardOpen, setIsAdminCardOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+    const [adminReturnProduct, setAdminReturnProduct] = useState<Product | null>(null)
 
     const isAdminMode = userInfo?.mode === 'ADMIN'
 
     const handleAddNewCard = () => {
+        setAdminReturnProduct(null)
         setEditingProduct(null)
         setIsAdminCardOpen(true)
     }
@@ -109,6 +111,7 @@ function App() {
 
             setIsAdminCardOpen(false)
             setEditingProduct(null)
+            setAdminReturnProduct(null)
             alert(data.id ? 'Товар успешно обновлён!' : 'Товар успешно добавлен!')
 
             // Обновляем список товаров
@@ -121,6 +124,7 @@ function App() {
 
     // Редактирование товара
     const handleEditProduct = (product: Product) => {
+        setAdminReturnProduct(product)
         setEditingProduct(product)
         setSelectedProduct(null)
         setIsAdminCardOpen(true)
@@ -136,6 +140,7 @@ function App() {
             await deleteGood(editingProduct.id, webApp.initData)
             setIsAdminCardOpen(false)
             setEditingProduct(null)
+            setAdminReturnProduct(null)
             alert('Товар успешно удалён!')
             await loadProducts()
         } catch (error) {
@@ -158,6 +163,7 @@ function App() {
             }
             setIsAdminCardOpen(false)
             setEditingProduct(null)
+            setAdminReturnProduct(null)
             await loadProducts()
         } catch (error) {
             console.error('Failed to toggle block status:', error)
@@ -350,6 +356,10 @@ function App() {
                     onClose={() => {
                         setIsAdminCardOpen(false)
                         setEditingProduct(null)
+                        if (adminReturnProduct) {
+                            setSelectedProduct(adminReturnProduct)
+                        }
+                        setAdminReturnProduct(null)
                     }}
                     onSave={handleSaveAdminCard}
                     editingProduct={editingProduct || undefined}
