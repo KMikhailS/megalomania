@@ -1,7 +1,7 @@
 import {useState, useEffect, useMemo, useCallback} from 'react'
 import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard} from './components'
 import type {Product} from './components'
-import {fetchGoods, fetchUserInfo, createGoodCard, addGoodImages, updateGoodCard, deleteGood, blockGood, activateGood, fetchAllGoods} from './api/client'
+import {fetchGoods, fetchMyGoods, addFavorite, removeFavorite, fetchUserInfo, createGoodCard, addGoodImages, updateGoodCard, deleteGood, blockGood, activateGood, fetchAllGoods} from './api/client'
 import type {GoodDTO, ImageDTO, UserInfo} from './api/client'
 import {useTelegramWebApp} from './hooks/useTelegramWebApp'
 
@@ -29,8 +29,10 @@ function App() {
     const loadProducts = useCallback(async () => {
         try {
             // Для админа загружаем все товары (включая заблокированные)
-            const goods = isAdminMode && webApp?.initData
-                ? await fetchAllGoods(webApp.initData)
+            const goods = webApp?.initData
+                ? (isAdminMode
+                    ? await fetchAllGoods(webApp.initData)
+                    : await fetchMyGoods(webApp.initData))
                 : await fetchGoods()
             const mappedProducts: Product[] = goods.map((good: GoodDTO) => {
                 const sortedImages = (good.images || [])
@@ -49,6 +51,7 @@ function App() {
                     description: good.description,
                     category: good.category,
                     status: good.status,
+                    favorite: Boolean(good.favorite),
                 }
             })
             setProducts(mappedProducts)
@@ -56,6 +59,34 @@ function App() {
             console.error('Failed to fetch goods:', error)
         }
     }, [isAdminMode, webApp])
+
+    const handleToggleFavorite = useCallback(async (product: Product) => {
+        if (!webApp?.initData) {
+            console.warn('No Telegram initData, cannot toggle favorite')
+            return
+        }
+
+        const nextFavorite = !product.favorite
+
+        // optimistic UI update
+        setProducts(prev =>
+            prev.map(p => p.id === product.id ? {...p, favorite: nextFavorite} : p)
+        )
+
+        try {
+            if (nextFavorite) {
+                await addFavorite(product.id, webApp.initData)
+            } else {
+                await removeFavorite(product.id, webApp.initData)
+            }
+        } catch (error) {
+            console.error('Failed to toggle favorite:', error)
+            // rollback
+            setProducts(prev =>
+                prev.map(p => p.id === product.id ? {...p, favorite: product.favorite} : p)
+            )
+        }
+    }, [webApp])
 
     // Сохранение товара из админ-панели
     const handleSaveAdminCard = async (data: {
@@ -247,12 +278,33 @@ function App() {
 
     // Показываем избранное
     if (activeTab === 'favorites') {
+        const favoriteItems = products
+            .filter(p => p.favorite)
+            .map(p => ({
+                id: p.id,
+                name: p.name,
+                price: p.price,
+                image: p.image,
+                size: 'L',
+            }))
+
         return (
             <div className="flex flex-col h-screen bg-white max-w-[402px] mx-auto overflow-hidden">
                 <Favorites
+                    items={favoriteItems}
                     onAddToCart={(item) => console.log('Добавлено в корзину:', item.name)}
                     onNotify={(item) => console.log('Оповещение для:', item.name)}
-                    onRemove={(item) => console.log('Удалено из избранного:', item.name)}
+                    onRemove={(item) => {
+                        if (!webApp?.initData) return
+
+                        // optimistic remove
+                        setProducts(prev => prev.map(p => p.id === item.id ? {...p, favorite: false} : p))
+                        removeFavorite(item.id, webApp.initData).catch((error) => {
+                            console.error('Failed to remove favorite:', error)
+                            // rollback
+                            setProducts(prev => prev.map(p => p.id === item.id ? {...p, favorite: true} : p))
+                        })
+                    }}
                 />
                 <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
             </div>
@@ -374,7 +426,7 @@ function App() {
                 <ProductGrid
                     products={filteredProducts}
                     onProductClick={setSelectedProduct}
-                    onFavorite={(product) => console.log('Добавлено в избранное:', product.name)}
+                    onFavorite={handleToggleFavorite}
                     isAdminMode={isAdminMode}
                     onAddNewCard={handleAddNewCard}
                 />

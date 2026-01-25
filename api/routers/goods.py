@@ -10,6 +10,7 @@ from models import GoodCardRequest, GoodDTO, ImageDTO, ImageReorderRequest
 from database import (
     create_good_card,
     get_goods_by_status,
+    get_favorite_product_ids,
     save_good_images,
     update_good_card,
     delete_good,
@@ -67,6 +68,42 @@ async def get_goods():
         )
 
 
+@router.get("/my", response_model=list[GoodDTO])
+async def get_my_goods(user_id: int = Depends(verify_telegram_init_data)):
+    """
+    Get all goods with status NEW for current user with favorite flag
+
+    Requires valid Telegram WebApp initData in Authorization header
+    """
+    logger.info(f"User {user_id} fetching goods with favorites")
+
+    try:
+        goods = await get_goods_by_status('NEW')
+        favorite_ids = await get_favorite_product_ids(user_id)
+
+        return [
+            GoodDTO(
+                id=good["id"],
+                name=good["name"],
+                category=good["category"],
+                price=good["price"],
+                non_discount_price=good.get("non_discount_price"),
+                description=good["description"],
+                images=[ImageDTO(**img) for img in good["images"]],
+                status=good["status"],
+                sort_order=good["sort_order"] or good["id"],
+                favorite=good["id"] in favorite_ids
+            )
+            for good in goods
+        ]
+    except Exception as e:
+        logger.error(f"Failed to fetch goods with favorites: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch goods"
+        )
+
+
 @router.get("/all", response_model=list[GoodDTO])
 async def get_all_goods_endpoint(user_id: int = Depends(verify_telegram_init_data)):
     """
@@ -80,6 +117,7 @@ async def get_all_goods_endpoint(user_id: int = Depends(verify_telegram_init_dat
     try:
         # Get all goods from database
         goods = await get_all_goods()
+        favorite_ids = await get_favorite_product_ids(user_id)
 
         # Convert to DTOs
         return [
@@ -92,7 +130,8 @@ async def get_all_goods_endpoint(user_id: int = Depends(verify_telegram_init_dat
                 description=good["description"],
                 images=[ImageDTO(**img) for img in good["images"]],
                 status=good["status"],
-                sort_order=good["sort_order"] or good["id"]
+                sort_order=good["sort_order"] or good["id"],
+                favorite=good["id"] in favorite_ids
             )
             for good in goods
         ]

@@ -39,6 +39,7 @@ class GoodDTO(BaseModel):
     images: list[ImageDTO] = []
     status: str
     sort_order: int
+    favorite: bool = False
 
 
 class ShopAddressDTO(BaseModel):

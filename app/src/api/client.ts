@@ -28,6 +28,7 @@ export interface GoodDTO {
   images: ImageDTO[];
   status: string;
   sort_order: number;
+  favorite: boolean;
 }
 
 /**
@@ -47,6 +48,62 @@ export async function fetchGoods(): Promise<GoodDTO[]> {
   }
 
   return response.json();
+}
+
+/**
+ * Fetch goods for current user with favorite flag (auth required)
+ */
+export async function fetchMyGoods(initData: string): Promise<GoodDTO[]> {
+  const response = await fetch(`${API_BASE_URL}/goods/my`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch my goods: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Add product to favorites (auth required)
+ */
+export async function addFavorite(productId: number, initData: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/favorites/${productId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to add favorite: ${response.status} ${errorText}`);
+  }
+}
+
+/**
+ * Remove product from favorites (auth required)
+ */
+export async function removeFavorite(productId: number, initData: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/favorites/${productId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to remove favorite: ${response.status} ${errorText}`);
+  }
 }
 
 // Category DTO from backend

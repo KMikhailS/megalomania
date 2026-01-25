@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routers import users, goods, uploads, shop_addresses, health, promo_banners, categories, orders, dadata
+from routers import users, goods, uploads, shop_addresses, health, promo_banners, categories, orders, dadata, favorites
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -57,6 +57,7 @@ app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 # Include routers
 app.include_router(users.router)
 app.include_router(goods.router)
+app.include_router(favorites.router)
 app.include_router(uploads.router)
 app.include_router(shop_addresses.router)
 app.include_router(health.router)

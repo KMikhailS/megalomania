@@ -60,6 +60,18 @@ async def init_db():
             )
         """)
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS favorites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                createstamp TIMESTAMP,
+                changestamp TIMESTAMP,
+                UNIQUE(user_id, product_id),
+                FOREIGN KEY (user_id) REFERENCES user_info(id),
+                FOREIGN KEY (product_id) REFERENCES goods(id) ON DELETE CASCADE
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS shop_addresses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 address TEXT NOT NULL
@@ -439,6 +451,53 @@ async def get_all_goods() -> list[dict]:
         result = list(goods_dict.values())
         logger.info(f"Retrieved {len(result)} goods (all statuses)")
         return result
+
+
+async def get_favorite_product_ids(user_id: int) -> set[int]:
+    """Get set of product_ids that are in favorites for the given user."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT product_id FROM favorites WHERE user_id = ?",
+            (user_id,)
+        )
+        rows = await cursor.fetchall()
+        return {row[0] for row in rows}
+
+
+async def add_favorite(user_id: int, product_id: int) -> None:
+    """Add product to user's favorites (idempotent)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        current_time = datetime.now().isoformat()
+        await db.execute(
+            """
+            INSERT INTO favorites (user_id, product_id, createstamp, changestamp)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, product_id) DO UPDATE SET
+                changestamp = excluded.changestamp
+            """,
+            (user_id, product_id, current_time, current_time)
+        )
+        await db.commit()
+
+
+async def remove_favorite(user_id: int, product_id: int) -> None:
+    """Remove product from user's favorites (idempotent)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM favorites WHERE user_id = ? AND product_id = ?",
+            (user_id, product_id)
+        )
+        await db.commit()
+
+
+async def good_exists(good_id: int) -> bool:
+    """Check if good exists by id."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT 1 FROM goods WHERE id = ? LIMIT 1",
+            (good_id,)
+        )
+        return await cursor.fetchone() is not None
 
 
 async def delete_good(good_id: int) -> None:
