@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import backArrow from '../assets/icons/back-arrow.svg'
-import heartIcon from '../assets/icons/heart-icon.svg'
 
 interface ProductCardProps {
-  image: string
   name: string
   price: string
   sizes?: string[]
@@ -13,7 +10,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({
-  image,
   name,
   price,
   sizes = ['S', 'M', 'L', 'XL'],
@@ -49,7 +45,7 @@ export function ProductCard({
       {/* Product Image */}
       <div className="relative">
         <img
-          src={image}
+          src="/images/menu.svg"
           alt={name}
           className="w-full h-[545px] object-cover"
         />
@@ -58,7 +54,7 @@ export function ProductCard({
           onClick={onBack}
           className="absolute top-[45px] left-[29px] cursor-pointer"
         >
-          <img src={backArrow} alt="Назад" className="w-[15px] h-[26px]" />
+          <img src="/images/menu.svg" alt="Назад" className="w-[15px] h-[26px]" />
         </button>
       </div>
 
@@ -101,7 +97,7 @@ export function ProductCard({
           className="flex items-center justify-between w-[167px] h-[48px] px-4 border border-black"
         >
           <span className="text-[15px] tracking-[-0.027em]">ОТЛОЖИТЬ</span>
-          <img src={heartIcon} alt="" className="w-[16px] h-[15px]" />
+          <img src="/images/menu.svg" alt="" className="w-[16px] h-[15px]" />
         </button>
       </div>
 

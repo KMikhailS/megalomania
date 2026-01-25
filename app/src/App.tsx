@@ -1,6 +1,4 @@
 import {useState} from 'react'
-import productImage from './assets/product-1-7eca87.png'
-import bannerImage from './assets/banner-1407c2.png'
 import {ProductCard, Cart, Favorites, Profile, BottomNavigation} from './components'
 
 const categories = ['Все', 'Платье', 'Худи', 'Комплекты']
@@ -9,7 +7,6 @@ interface Product {
     id: number
     name: string
     price: string
-    image: string
 }
 
 const products: Product[] = [
@@ -17,25 +14,21 @@ const products: Product[] = [
         id: 1,
         name: 'Комплект "Клава" Молочного цвета',
         price: '8 500 ₽',
-        image: productImage,
     },
     {
         id: 2,
         name: 'Комплект "Клава" Молочного цвета',
         price: '8 500 ₽',
-        image: productImage,
     },
     {
         id: 3,
         name: 'Комплект "Клава" Молочного цвета',
         price: '8 500 ₽',
-        image: productImage,
     },
     {
         id: 4,
         name: 'Комплект "Клава" Молочного цвета',
         price: '8 500 ₽',
-        image: productImage,
     },
 ]
 
@@ -87,7 +80,6 @@ function App() {
         return (
             <div className="flex flex-col h-screen bg-white max-w-[402px] mx-auto overflow-hidden">
                 <ProductCard
-                    image={selectedProduct.image}
                     name={selectedProduct.name}
                     price={selectedProduct.price}
                     onBack={() => setSelectedProduct(null)}
@@ -134,7 +126,7 @@ function App() {
                 {/* Banner */}
                 <div className="relative mb-4">
                     <img
-                        src={bannerImage}
+                        src="/images/menu.svg"
                         alt="Новая коллекция"
                         className="w-full h-[180px] object-cover"
                     />
@@ -188,7 +180,7 @@ function App() {
                         >
                             <div className="relative border border-black">
                                 <img
-                                    src={product.image}
+                                    src="/images/menu.svg"
                                     alt={product.name}
                                     className="w-full h-[212px] object-cover"
                                 />
