@@ -50,14 +50,11 @@ async def start_handler(message: types.Message):
     )
 
     # Get path to welcome image
-    image_path = os.path.join(os.path.dirname(__file__), "images", "fanfan-main.jpg")
+    image_path = os.path.join(os.path.dirname(__file__), "images", "megalomania.jpg")
     photo = FSInputFile(image_path)
 
-    caption = """Цветы онлайн  это просто.
-Fan Fan Tulpan в Telegram:
-выбрал букет, оформил доставку, подарил эмоции!!!
-
-Жми на кнопку и выбирай свежие цветы уже сейчас."""
+    caption = """Магазин одежды Megalomania в Telegram.
+Жми на кнопку и принарядись уже сейчас."""
 
     await message.answer_photo(
         photo=photo,
