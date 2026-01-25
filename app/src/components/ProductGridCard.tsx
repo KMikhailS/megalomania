@@ -43,7 +43,7 @@ const ProductGridCard: React.FC<ProductGridCardProps> = ({ product, onClick, onF
             }}
           >
             {isFavorite ? (
-              <svg width="21" height="19" viewBox="0 0 21 19" fill="none">
+              <svg width="21" height="19" viewBox="0 0 21 19" fill="none" overflow="visible">
                 <path
                   d="M10.5 19L9.0225 17.653C3.78 12.8385 0 9.39575 0 5.22951C0 1.78675 2.646 -0.75 6.09 -0.75C8.022 -0.75 9.8805 0.16575 10.5 1.56525C11.1195 0.16575 12.978 -0.75 14.91 -0.75C18.354 -0.75 21 1.78675 21 5.22951C21 9.39575 17.22 12.8385 11.9775 17.653L10.5 19Z"
                   fill="black"
