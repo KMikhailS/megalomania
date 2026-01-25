@@ -69,13 +69,6 @@ export function Favorites({
                     className="w-full h-full object-cover"
                   />
                 )}
-                {item.isSoldOut && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[13px] font-semibold tracking-[-0.013em]">
-                      РАСПРОДАНО
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Product Info */}
@@ -125,15 +118,21 @@ export function Favorites({
                 )}
 
                 {item.isSoldOut && (
-                  /* Notify Button */
-                  <button
-                    onClick={() => onNotify?.(item)}
-                    className="flex items-center justify-center w-full h-[38px] mt-auto bg-black"
-                  >
-                    <span className="text-[12px] text-white uppercase tracking-[-0.014em]">
-                      Оповестить
-                    </span>
-                  </button>
+                  <div className="mt-auto">
+                    <p className="text-[13px] font-semibold tracking-[-0.013em]">
+                      РАСПРОДАНО
+                    </p>
+
+                    {/* Notify Button */}
+                    <button
+                      onClick={() => onNotify?.(item)}
+                      className="flex items-center justify-center w-full h-[38px] mt-3 bg-black"
+                    >
+                      <span className="text-[12px] text-white uppercase tracking-[-0.014em]">
+                        Оповестить
+                      </span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
