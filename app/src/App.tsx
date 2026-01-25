@@ -286,6 +286,7 @@ function App() {
                 price: p.price,
                 image: p.image,
                 size: 'L',
+                isSoldOut: p.status === 'BLOCKED',
             }))
 
         return (
