@@ -33,4 +33,10 @@ images
 pages
 CLAUDE.md
 
+docs
 tasks
+
+api/docs
+api/tasks
+app/docs
+app/tasks

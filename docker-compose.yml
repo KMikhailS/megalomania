@@ -1,0 +1,38 @@
+services:
+  nginx:
+    image: nginx:stable-alpine3.21-perl
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - './nginx.conf:/etc/nginx/nginx.conf'
+      - '/etc/letsencrypt:/etc/letsencrypt'
+      - '/root/app/uploads:/var/www/uploads:ro'
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - network
+
+  backend:
+    build:
+      context: ./api
+    expose:
+      - "8000"
+    volumes:
+      - /root/app:/app/data
+    networks:
+      - network
+
+  frontend:
+    build:
+      context: ./app
+    ports:
+      - "3000:3000"
+    volumes:
+      - /root/app/images:/usr/share/nginx/html/images
+    networks:
+      - network
+
+networks:
+  network:
