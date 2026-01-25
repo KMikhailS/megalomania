@@ -269,6 +269,14 @@ function App() {
 
             {/* Bottom Navigation */}
             <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
+
+            {/* Admin Product Card Modal */}
+            {isAdminCardOpen && (
+                <AdminProductCard
+                    onClose={() => setIsAdminCardOpen(false)}
+                    onSave={handleSaveAdminCard}
+                />
+            )}
         </div>
     )
 }
