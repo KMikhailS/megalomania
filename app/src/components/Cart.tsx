@@ -31,7 +31,6 @@ export function Cart({
 }: CartProps) {
   const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier')
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online')
-  const [isPromoActivated] = useState(true)
 
   // Парсинг цены из строки "8 500 ₽" в число
   const parsePrice = (priceStr: string): number => {
@@ -43,7 +42,7 @@ export function Cart({
     return sum + parsePrice(item.product.price) * item.quantity
   }, 0)
   const deliveryCost = deliveryMethod === 'courier' ? 200 : 0
-  const discount = isPromoActivated ? 0 : 0
+  const discount = 0
   const total = subtotal + deliveryCost - discount
 
   const itemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
@@ -193,35 +192,23 @@ export function Cart({
         </div>
 
         {/* Delivery Address Section */}
-        <div className="mt-4">
-          <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
-          <div className="px-[29px] py-3 flex items-center justify-between">
-            <span className="text-[17px] tracking-[-0.014em]">Адрес доставки</span>
-            <span className="text-[17px] tracking-[-0.024em]">›</span>
-          </div>
-          <div className="px-[29px]">
-            <p className="text-[13px] font-light tracking-[-0.006em]">
-              Улица: Садовническая наб.
-            </p>
-            <p className="text-[13px] font-light tracking-[-0.006em]">
-              Дом: 3; Стр: 1; Квартира 32
-            </p>
-          </div>
-        </div>
-
-        {/* Promo Code Section */}
-        <div className="mt-6">
-          <div className="mx-[13px] h-[40px] bg-[#F2F2F7] rounded-sm" />
-          <div className="px-[29px] py-3 flex items-center justify-between">
-            <span className="text-[17px] tracking-[0.02em]">ПРОМОКОД</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[15px] font-light tracking-[-0.027em]">
-                {isPromoActivated ? 'Активирован' : 'Ввести'}
-              </span>
+        {deliveryMethod === 'courier' && (
+          <div className="mt-4">
+            <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
+            <div className="px-[29px] py-3 flex items-center justify-between">
+              <span className="text-[17px] tracking-[-0.014em]">Адрес доставки</span>
               <span className="text-[17px] tracking-[-0.024em]">›</span>
             </div>
+            <div className="px-[29px]">
+              <p className="text-[13px] font-light tracking-[-0.006em]">
+                Улица: Садовническая наб.
+              </p>
+              <p className="text-[13px] font-light tracking-[-0.006em]">
+                Дом: 3; Стр: 1; Квартира 32
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Payment Section */}
         <div className="mt-2">
@@ -266,18 +253,20 @@ export function Cart({
         </div>
 
         {/* Payment Method Section */}
-        <div className="mt-4">
-          <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
-          <div className="px-[29px] py-3 flex items-center justify-between">
-            <span className="text-[17px] tracking-[-0.014em]">Выбор способа</span>
-            <span className="text-[17px] tracking-[-0.024em]">›</span>
+        {paymentMethod === 'online' && (
+          <div className="mt-4">
+            <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
+            <div className="px-[29px] py-3 flex items-center justify-between">
+              <span className="text-[17px] tracking-[-0.014em]">Выбор способа</span>
+              <span className="text-[17px] tracking-[-0.024em]">›</span>
+            </div>
+            <div className="px-[29px]">
+              <p className="text-[13px] font-light tracking-[-0.006em]">
+                Mastercard (**** **** **** 1234)
+              </p>
+            </div>
           </div>
-          <div className="px-[29px]">
-            <p className="text-[13px] font-light tracking-[-0.006em]">
-              Mastercard (**** **** **** 1234)
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Summary Section */}
         <div className="mt-8 px-[29px]">
@@ -287,12 +276,14 @@ export function Cart({
               {subtotal.toLocaleString('ru-RU')} ₽
             </span>
           </div>
-          <div className="flex justify-between py-1">
-            <span className="text-[15px] font-light tracking-[-0.005em]">Доставка</span>
-            <span className="text-[15px] font-light tracking-[-0.005em]">
-              {cartItems.length > 0 ? deliveryCost : 0} ₽
-            </span>
-          </div>
+          {deliveryMethod === 'courier' && (
+            <div className="flex justify-between py-1">
+              <span className="text-[15px] font-light tracking-[-0.005em]">Доставка</span>
+              <span className="text-[15px] font-light tracking-[-0.005em]">
+                {cartItems.length > 0 ? deliveryCost : 0} ₽
+              </span>
+            </div>
+          )}
           <div className="flex justify-between py-1">
             <span className="text-[15px] font-light tracking-[-0.005em]">Скидка</span>
             <span className="text-[15px] font-light tracking-[-0.005em]">
