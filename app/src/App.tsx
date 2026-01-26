@@ -318,7 +318,12 @@ function App() {
     useEffect(() => {
         if (!webApp) return
 
-        const shouldShowBackButton = selectedProduct !== null || isAdminCardOpen || activeTab === 'cart'
+        const shouldShowBackButton =
+            selectedProduct !== null ||
+            isAdminCardOpen ||
+            activeTab === 'cart' ||
+            activeTab === 'favorites' ||
+            activeTab === 'profile'
 
         if (shouldShowBackButton) {
             const handleBack = () => {
@@ -339,6 +344,9 @@ function App() {
                     setCartReturnTo(null)
                 } else if (selectedProduct) {
                     setSelectedProduct(null)
+                } else if (activeTab === 'favorites' || activeTab === 'profile') {
+                    setActiveTab('home')
+                    setCartReturnTo(null)
                 }
             }
 
