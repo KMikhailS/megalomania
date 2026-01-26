@@ -327,3 +327,36 @@ export async function fetchAllGoods(initData: string): Promise<GoodDTO[]> {
 
   return response.json();
 }
+
+// Address suggestion from DaData
+export interface AddressSuggestion {
+  value: string;
+  geo_lat: string | null;
+  geo_lon: string | null;
+}
+
+/**
+ * Get address suggestions from DaData API (proxied through backend)
+ */
+export async function suggestAddress(query: string): Promise<AddressSuggestion[]> {
+  if (query.length < 3) {
+    return [];
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/dadata/suggest?query=${encodeURIComponent(query)}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch address suggestions: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}

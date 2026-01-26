@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useDebounce } from '../hooks/useDebounce'
+import { suggestAddress, type AddressSuggestion } from '../api/client'
 
 interface Product {
   id: number
@@ -31,6 +33,35 @@ export function Cart({
 }: CartProps) {
   const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier')
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+
+  const debouncedAddress = useDebounce(deliveryAddress, 300)
+
+  // Fetch address suggestions when debounced address changes
+  useEffect(() => {
+    if (deliveryMethod !== 'courier' || debouncedAddress.length < 3) {
+      setSuggestions([])
+      return
+    }
+
+    const fetchSuggestions = async () => {
+      setIsLoadingSuggestions(true)
+      try {
+        const result = await suggestAddress(debouncedAddress)
+        setSuggestions(result)
+      } catch (error) {
+        console.error('Failed to fetch address suggestions:', error)
+        setSuggestions([])
+      } finally {
+        setIsLoadingSuggestions(false)
+      }
+    }
+
+    fetchSuggestions()
+  }, [debouncedAddress, deliveryMethod])
 
   // Парсинг цены из строки "8 500 ₽" в число
   const parsePrice = (priceStr: string): number => {
@@ -194,17 +225,47 @@ export function Cart({
         {deliveryMethod === 'courier' && (
           <div className="mt-4">
             <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
-            <div className="px-[29px] py-3 flex items-center justify-between">
+            <div className="px-[29px] py-3">
               <span className="text-[17px] tracking-[-0.014em]">Адрес доставки</span>
-              <span className="text-[17px] tracking-[-0.024em]">›</span>
             </div>
-            <div className="px-[29px]">
-              <p className="text-[13px] font-light tracking-[-0.006em]">
-                Улица: Садовническая наб.
-              </p>
-              <p className="text-[13px] font-light tracking-[-0.006em]">
-                Дом: 3; Стр: 1; Квартира 32
-              </p>
+            <div className="px-[29px] relative">
+              <input
+                type="text"
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => {
+                  // Delay to allow click on suggestion
+                  setTimeout(() => setShowSuggestions(false), 200)
+                }}
+                placeholder="Введите адрес доставки"
+                className="w-full h-[38px] px-3 text-[13px] font-light tracking-[-0.006em] border border-black outline-none"
+              />
+              {/* Address suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-black border-t-0 z-10 max-h-[200px] overflow-y-auto">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => {
+                        setDeliveryAddress(suggestion.value)
+                        setSuggestions([])
+                        setShowSuggestions(false)
+                      }}
+                      className="w-full px-3 py-2 text-left text-[13px] font-light tracking-[-0.006em] hover:bg-[#F2F2F7] border-b border-[#C4C4C4] last:border-b-0"
+                    >
+                      {suggestion.value}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Loading indicator */}
+              {showSuggestions && isLoadingSuggestions && deliveryAddress.length >= 3 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-black border-t-0 z-10 px-3 py-2 text-[13px] font-light text-gray-500">
+                  Загрузка...
+                </div>
+              )}
             </div>
           </div>
         )}
