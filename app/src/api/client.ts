@@ -335,6 +335,12 @@ export interface AddressSuggestion {
   geo_lon: string | null;
 }
 
+// Shop address
+export interface ShopAddress {
+  id: number;
+  address: string;
+}
+
 /**
  * Get address suggestions from DaData API (proxied through backend)
  */
@@ -359,4 +365,93 @@ export async function suggestAddress(query: string): Promise<AddressSuggestion[]
   }
 
   return response.json();
+}
+
+/**
+ * Fetch all shop addresses (public endpoint)
+ */
+export async function fetchShopAddresses(): Promise<ShopAddress[]> {
+  const response = await fetch(`${API_BASE_URL}/shop/addresses`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch shop addresses: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a new shop address (ADMIN only)
+ */
+export async function createShopAddress(
+  address: string,
+  initData: string
+): Promise<ShopAddress> {
+  const response = await fetch(`${API_BASE_URL}/shop/addresses`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ address }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create shop address: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Update existing shop address (ADMIN only)
+ */
+export async function updateShopAddress(
+  addressId: number,
+  address: string,
+  initData: string
+): Promise<ShopAddress> {
+  const response = await fetch(`${API_BASE_URL}/shop/addresses/${addressId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ address }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update shop address: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete shop address (ADMIN only)
+ */
+export async function deleteShopAddress(
+  addressId: number,
+  initData: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/shop/addresses/${addressId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete shop address: ${response.status} ${errorText}`);
+  }
 }

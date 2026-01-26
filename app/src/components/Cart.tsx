@@ -22,6 +22,8 @@ interface CartProps {
   onDecreaseQuantity?: (productId: number, size: string) => void
   onRemoveItem?: (productId: number, size: string) => void
   onCheckout?: () => void
+  selectedPickupAddress?: string
+  onOpenStoreAddresses?: () => void
 }
 
 export function Cart({
@@ -29,7 +31,9 @@ export function Cart({
   onIncreaseQuantity,
   onDecreaseQuantity,
   onRemoveItem,
-  onCheckout
+  onCheckout,
+  selectedPickupAddress = '',
+  onOpenStoreAddresses
 }: CartProps) {
   const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier')
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online')
@@ -220,6 +224,33 @@ export function Cart({
             </button>
           </div>
         </div>
+
+        {/* Pickup Address Section */}
+        {deliveryMethod === 'pickup' && (
+          <div className="mt-4">
+            <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
+            <div className="px-[29px] py-3 flex items-center justify-between">
+              <span className="text-[17px] tracking-[-0.014em]">Адрес самовывоза</span>
+              <button
+                onClick={onOpenStoreAddresses}
+                className="text-[14px] tracking-[-0.014em] text-black hover:opacity-70"
+              >
+                Выбрать
+              </button>
+            </div>
+            <div className="px-[29px]">
+              {selectedPickupAddress ? (
+                <p className="text-[13px] font-light tracking-[-0.006em]">
+                  {selectedPickupAddress}
+                </p>
+              ) : (
+                <p className="text-[13px] font-light tracking-[-0.006em] text-gray-400">
+                  Выберите адрес магазина
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Delivery Address Section */}
         {deliveryMethod === 'courier' && (

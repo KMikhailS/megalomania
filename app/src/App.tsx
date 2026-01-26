@@ -1,5 +1,5 @@
 import {useState, useEffect, useMemo, useCallback} from 'react'
-import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard} from './components'
+import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard, StoreAddresses} from './components'
 import type {Product} from './components'
 
 // Интерфейс для товара в корзине
@@ -26,6 +26,8 @@ function App() {
     const [cartItems, setCartItems] = useState<CartItemData[]>([])
     const [cartReturnTo, setCartReturnTo] = useState<{tab: string; product: Product | null} | null>(null)
     const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
+    const [isStoreAddressesOpen, setIsStoreAddressesOpen] = useState(false)
+    const [selectedPickupAddress, setSelectedPickupAddress] = useState('')
 
     // Добавление товара в корзину
     const handleAddToCart = useCallback((product: Product, size: string) => {
@@ -371,8 +373,21 @@ function App() {
                     onDecreaseQuantity={handleDecreaseQuantity}
                     onRemoveItem={handleRemoveFromCart}
                     onCheckout={() => console.log('Оформление заказа')}
+                    selectedPickupAddress={selectedPickupAddress}
+                    onOpenStoreAddresses={() => setIsStoreAddressesOpen(true)}
                 />
                 <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
+                <StoreAddresses
+                    isOpen={isStoreAddressesOpen}
+                    onClose={() => setIsStoreAddressesOpen(false)}
+                    onSelectAddress={(address) => {
+                        setSelectedPickupAddress(address)
+                        setIsStoreAddressesOpen(false)
+                    }}
+                    userMode={userInfo?.mode}
+                    initData={webApp?.initData}
+                    fromCart={true}
+                />
             </div>
         )
     }
