@@ -42,8 +42,7 @@ export function Cart({
     return sum + parsePrice(item.product.price) * item.quantity
   }, 0)
   const deliveryCost = deliveryMethod === 'courier' ? 200 : 0
-  const discount = 0
-  const total = subtotal + deliveryCost - discount
+  const total = subtotal + deliveryCost
 
   const itemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -284,12 +283,6 @@ export function Cart({
               </span>
             </div>
           )}
-          <div className="flex justify-between py-1">
-            <span className="text-[15px] font-light tracking-[-0.005em]">Скидка</span>
-            <span className="text-[15px] font-light tracking-[-0.005em]">
-              {discount} ₽
-            </span>
-          </div>
 
           {/* Total */}
           <div className="flex justify-between py-3 mt-2">

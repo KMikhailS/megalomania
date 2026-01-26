@@ -24,6 +24,7 @@ function App() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [adminReturnProduct, setAdminReturnProduct] = useState<Product | null>(null)
     const [cartItems, setCartItems] = useState<CartItemData[]>([])
+    const [cartReturnTo, setCartReturnTo] = useState<{tab: string; product: Product | null} | null>(null)
     const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
 
     // Добавление товара в корзину
@@ -79,6 +80,24 @@ function App() {
             prevItems.filter(item => !(item.product.id === productId && item.size === size))
         )
     }, [])
+
+    const openCart = useCallback(() => {
+        if (activeTab === 'cart') return
+        setCartReturnTo({tab: activeTab, product: selectedProduct})
+        setActiveTab('cart')
+        // карточку товара закрываем, но при "назад" из корзины восстановим её из cartReturnTo
+        setSelectedProduct(null)
+    }, [activeTab, selectedProduct])
+
+    const handleTabChange = useCallback((tab: string) => {
+        if (tab === 'cart') {
+            openCart()
+            return
+        }
+        setCartReturnTo(null)
+        setSelectedProduct(null)
+        setActiveTab(tab)
+    }, [openCart])
 
     const isAdminMode = userInfo?.mode === 'ADMIN'
 
@@ -299,7 +318,7 @@ function App() {
     useEffect(() => {
         if (!webApp) return
 
-        const shouldShowBackButton = selectedProduct !== null || isAdminCardOpen
+        const shouldShowBackButton = selectedProduct !== null || isAdminCardOpen || activeTab === 'cart'
 
         if (shouldShowBackButton) {
             const handleBack = () => {
@@ -310,6 +329,14 @@ function App() {
                         setSelectedProduct(adminReturnProduct)
                     }
                     setAdminReturnProduct(null)
+                } else if (activeTab === 'cart') {
+                    const returnTab = cartReturnTo?.tab && cartReturnTo.tab !== 'cart'
+                        ? cartReturnTo.tab
+                        : 'home'
+
+                    setActiveTab(returnTab)
+                    setSelectedProduct(cartReturnTo?.product ?? null)
+                    setCartReturnTo(null)
                 } else if (selectedProduct) {
                     setSelectedProduct(null)
                 }
@@ -320,12 +347,11 @@ function App() {
 
             return () => {
                 webApp.BackButton.offClick(handleBack)
-                webApp.BackButton.hide()
             }
         } else {
             webApp.BackButton.hide()
         }
-    }, [webApp, selectedProduct, isAdminCardOpen, adminReturnProduct])
+    }, [webApp, activeTab, selectedProduct, isAdminCardOpen, adminReturnProduct, cartReturnTo])
 
     // Показываем корзину
     if (activeTab === 'cart') {
@@ -338,7 +364,7 @@ function App() {
                     onRemoveItem={handleRemoveFromCart}
                     onCheckout={() => console.log('Оформление заказа')}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
             </div>
         )
     }
@@ -374,7 +400,7 @@ function App() {
                         })
                     }}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
             </div>
         )
     }
@@ -386,7 +412,7 @@ function App() {
                 <Profile
                     onLogout={() => console.log('Выход из аккаунта')}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
             </div>
         )
     }
@@ -402,14 +428,14 @@ function App() {
                         handleAddToCart(selectedProduct, size)
                     }}
                     isInCart={(size: string) => cartItems.some(item => item.product.id === selectedProduct.id && item.size === size)}
-                    onGoToCart={() => setActiveTab('cart')}
+                    onGoToCart={openCart}
                     onSaveForLater={() => {
                         console.log('Отложено:', selectedProduct.name)
                     }}
                     isAdmin={isAdminMode}
                     onEdit={() => handleEditProduct(selectedProduct)}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
             </div>
         )
     }
@@ -500,7 +526,7 @@ function App() {
             </main>
 
             {/* Bottom Navigation */}
-            <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
+            <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
 
             {/* Admin Product Card Modal */}
             {isAdminCardOpen && (
