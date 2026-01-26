@@ -18,6 +18,8 @@ interface ProductCardProps {
   sizes?: string[]
   onBack?: () => void
   onAddToCart?: (size: string) => void
+  isInCart?: (size: string) => boolean
+  onGoToCart?: () => void
   onSaveForLater?: () => void
   isAdmin?: boolean
   onEdit?: () => void
@@ -28,6 +30,8 @@ export function ProductCard({
   sizes = ['S', 'M', 'L', 'XL'],
   onBack,
   onAddToCart,
+  isInCart,
+  onGoToCart,
   onSaveForLater,
   isAdmin,
   onEdit,
@@ -46,6 +50,7 @@ export function ProductCard({
 
   // Get array of images
   const imageList = images && images.length > 0 ? images : (image ? [image] : ['/images/placeholder.png'])
+  const inCart = Boolean(isInCart?.(selectedSize))
 
   const handlePrevImage = () => {
     setCurrentImageIndex(prev => prev === 0 ? imageList.length - 1 : prev - 1)
@@ -255,10 +260,16 @@ export function ProductCard({
       {/* Add to Cart Button */}
       <div className="px-[29px] mt-[20px] pb-[20px]">
         <button
-          onClick={() => onAddToCart?.(selectedSize)}
+          onClick={() => {
+            if (inCart) {
+              onGoToCart?.()
+              return
+            }
+            onAddToCart?.(selectedSize)
+          }}
           className="w-full h-[48px] bg-black text-white text-[16px] tracking-[-0.01em]"
         >
-          Добавить в корзину
+          {inCart ? 'В корзину' : 'Добавить в корзину'}
         </button>
       </div>
     </div>
