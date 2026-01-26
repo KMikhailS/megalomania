@@ -24,6 +24,7 @@ function App() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [adminReturnProduct, setAdminReturnProduct] = useState<Product | null>(null)
     const [cartItems, setCartItems] = useState<CartItemData[]>([])
+    const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
 
     // Добавление товара в корзину
     const handleAddToCart = useCallback((product: Product, size: string) => {
@@ -337,7 +338,7 @@ function App() {
                     onRemoveItem={handleRemoveFromCart}
                     onCheckout={() => console.log('Оформление заказа')}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
             </div>
         )
     }
@@ -373,7 +374,7 @@ function App() {
                         })
                     }}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
             </div>
         )
     }
@@ -385,7 +386,7 @@ function App() {
                 <Profile
                     onLogout={() => console.log('Выход из аккаунта')}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
             </div>
         )
     }
@@ -400,13 +401,15 @@ function App() {
                     onAddToCart={(size: string) => {
                         handleAddToCart(selectedProduct, size)
                     }}
+                    isInCart={(size: string) => cartItems.some(item => item.product.id === selectedProduct.id && item.size === size)}
+                    onGoToCart={() => setActiveTab('cart')}
                     onSaveForLater={() => {
                         console.log('Отложено:', selectedProduct.name)
                     }}
                     isAdmin={isAdminMode}
                     onEdit={() => handleEditProduct(selectedProduct)}
                 />
-                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
+                <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
             </div>
         )
     }
@@ -497,7 +500,7 @@ function App() {
             </main>
 
             {/* Bottom Navigation */}
-            <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
+            <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} cartCount={cartCount}/>
 
             {/* Admin Product Card Modal */}
             {isAdminCardOpen && (

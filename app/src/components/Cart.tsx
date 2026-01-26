@@ -29,7 +29,6 @@ export function Cart({
   onRemoveItem,
   onCheckout
 }: CartProps) {
-  const [region] = useState('Москва')
   const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier')
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online')
   const [isPromoActivated] = useState(true)
@@ -151,18 +150,6 @@ export function Cart({
           </div>
         ))}
 
-        {/* Region Section */}
-        <div className="mt-4">
-          <div className="mx-[13px] h-[40px] bg-[#F2F2F7] rounded-sm" />
-          <div className="px-[29px] py-3 flex items-center justify-between">
-            <span className="text-[17px] tracking-[0.02em]">РЕГИОН</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[15px] font-light tracking-[-0.027em]">{region}</span>
-              <span className="text-[17px] tracking-[-0.024em]">›</span>
-            </div>
-          </div>
-        </div>
-
         {/* Delivery Method Section */}
         <div className="mt-2">
           <div className="mx-[13px] h-[40px] bg-[#F2F2F7] rounded-sm" />
@@ -213,7 +200,6 @@ export function Cart({
             <span className="text-[17px] tracking-[-0.024em]">›</span>
           </div>
           <div className="px-[29px]">
-            <p className="text-[13px] font-light tracking-[-0.006em]">Город: {region}</p>
             <p className="text-[13px] font-light tracking-[-0.006em]">
               Улица: Садовническая наб.
             </p>
