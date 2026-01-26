@@ -1,23 +1,30 @@
 import { useState, useEffect, useRef } from 'react'
 
-interface ProductCardProps {
+interface Product {
+  id: number
   name: string
   price: string
-  image?: string
+  image: string
   images?: string[]
+  description?: string
+  category?: string
+  status?: string
+  favorite?: boolean
+  non_discount_price?: string
+}
+
+interface ProductCardProps {
+  product: Product
   sizes?: string[]
   onBack?: () => void
-  onAddToCart?: () => void
+  onAddToCart?: (size: string) => void
   onSaveForLater?: () => void
   isAdmin?: boolean
   onEdit?: () => void
 }
 
 export function ProductCard({
-  name,
-  price,
-  image,
-  images,
+  product,
   sizes = ['S', 'M', 'L', 'XL'],
   onBack,
   onAddToCart,
@@ -25,6 +32,7 @@ export function ProductCard({
   isAdmin,
   onEdit,
 }: ProductCardProps) {
+  const { name, price, image, images } = product
   const [selectedSize, setSelectedSize] = useState(sizes[2] || 'L')
   const [isSizeOpen, setIsSizeOpen] = useState(false)
   const [isInfoOpen, setIsInfoOpen] = useState(false)
@@ -247,7 +255,7 @@ export function ProductCard({
       {/* Add to Cart Button */}
       <div className="px-[29px] mt-[20px] pb-[20px]">
         <button
-          onClick={onAddToCart}
+          onClick={() => onAddToCart?.(selectedSize)}
           className="w-full h-[48px] bg-black text-white text-[16px] tracking-[-0.01em]"
         >
           Добавить в корзину

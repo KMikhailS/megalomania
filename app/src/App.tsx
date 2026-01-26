@@ -1,6 +1,13 @@
 import {useState, useEffect, useMemo, useCallback} from 'react'
 import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard} from './components'
 import type {Product} from './components'
+
+// Интерфейс для товара в корзине
+export interface CartItemData {
+    product: Product
+    quantity: number
+    size: string
+}
 import {fetchGoods, fetchMyGoods, addFavorite, removeFavorite, fetchUserInfo, createGoodCard, addGoodImages, updateGoodCard, deleteGood, blockGood, activateGood, fetchAllGoods} from './api/client'
 import type {GoodDTO, ImageDTO, UserInfo} from './api/client'
 import {useTelegramWebApp} from './hooks/useTelegramWebApp'
@@ -16,6 +23,61 @@ function App() {
     const [isAdminCardOpen, setIsAdminCardOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [adminReturnProduct, setAdminReturnProduct] = useState<Product | null>(null)
+    const [cartItems, setCartItems] = useState<CartItemData[]>([])
+
+    // Добавление товара в корзину
+    const handleAddToCart = useCallback((product: Product, size: string) => {
+        setCartItems(prevItems => {
+            const existingItem = prevItems.find(
+                item => item.product.id === product.id && item.size === size
+            )
+
+            if (existingItem) {
+                // Если товар с таким размером уже есть - увеличиваем количество
+                return prevItems.map(item =>
+                    item.product.id === product.id && item.size === size
+                        ? {...item, quantity: item.quantity + 1}
+                        : item
+                )
+            } else {
+                // Если товара нет - добавляем с количеством 1
+                return [...prevItems, {product, quantity: 1, size}]
+            }
+        })
+    }, [])
+
+    // Увеличение количества товара
+    const handleIncreaseQuantity = useCallback((productId: number, size: string) => {
+        setCartItems(prevItems =>
+            prevItems.map(item =>
+                item.product.id === productId && item.size === size
+                    ? {...item, quantity: item.quantity + 1}
+                    : item
+            )
+        )
+    }, [])
+
+    // Уменьшение количества товара
+    const handleDecreaseQuantity = useCallback((productId: number, size: string) => {
+        setCartItems(prevItems => {
+            const item = prevItems.find(i => i.product.id === productId && i.size === size)
+            if (item && item.quantity <= 1) {
+                return prevItems // Не уменьшаем ниже 1
+            }
+            return prevItems.map(i =>
+                i.product.id === productId && i.size === size
+                    ? {...i, quantity: i.quantity - 1}
+                    : i
+            )
+        })
+    }, [])
+
+    // Удаление товара из корзины
+    const handleRemoveFromCart = useCallback((productId: number, size: string) => {
+        setCartItems(prevItems =>
+            prevItems.filter(item => !(item.product.id === productId && item.size === size))
+        )
+    }, [])
 
     const isAdminMode = userInfo?.mode === 'ADMIN'
 
@@ -269,6 +331,10 @@ function App() {
         return (
             <div className="flex flex-col h-screen bg-white max-w-[402px] mx-auto overflow-hidden">
                 <Cart
+                    cartItems={cartItems}
+                    onIncreaseQuantity={handleIncreaseQuantity}
+                    onDecreaseQuantity={handleDecreaseQuantity}
+                    onRemoveItem={handleRemoveFromCart}
                     onCheckout={() => console.log('Оформление заказа')}
                 />
                 <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab}/>
@@ -329,13 +395,10 @@ function App() {
         return (
             <div className="flex flex-col h-screen bg-white max-w-[402px] mx-auto overflow-hidden">
                 <ProductCard
-                    name={selectedProduct.name}
-                    price={selectedProduct.price}
-                    image={selectedProduct.image}
-                    images={selectedProduct.images}
+                    product={selectedProduct}
                     onBack={() => setSelectedProduct(null)}
-                    onAddToCart={() => {
-                        console.log('Добавлено в корзину:', selectedProduct.name)
+                    onAddToCart={(size: string) => {
+                        handleAddToCart(selectedProduct, size)
                     }}
                     onSaveForLater={() => {
                         console.log('Отложено:', selectedProduct.name)
