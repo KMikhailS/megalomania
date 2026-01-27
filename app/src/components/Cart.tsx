@@ -344,20 +344,20 @@ export function Cart({
         </div>
 
         {/* Payment Method Section */}
-        {paymentMethod === 'online' && (
-          <div className="mt-4">
-            <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
-            <div className="px-[29px] py-3 flex items-center justify-between">
-              <span className="text-[17px] tracking-[-0.014em]">Выбор способа</span>
-              <span className="text-[17px] tracking-[-0.024em]">›</span>
-            </div>
-            <div className="px-[29px]">
-              <p className="text-[13px] font-light tracking-[-0.006em]">
-                Mastercard (**** **** **** 1234)
-              </p>
-            </div>
-          </div>
-        )}
+        {/*{paymentMethod === 'online' && (*/}
+        {/*  <div className="mt-4">*/}
+        {/*    <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />*/}
+        {/*    <div className="px-[29px] py-3 flex items-center justify-between">*/}
+        {/*      <span className="text-[17px] tracking-[-0.014em]">Выбор способа</span>*/}
+        {/*      <span className="text-[17px] tracking-[-0.024em]">›</span>*/}
+        {/*    </div>*/}
+        {/*    <div className="px-[29px]">*/}
+        {/*      <p className="text-[13px] font-light tracking-[-0.006em]">*/}
+        {/*        Mastercard (**** **** **** 1234)*/}
+        {/*      </p>*/}
+        {/*    </div>*/}
+        {/*  </div>*/}
+        {/*)}*/}
 
         {/* Summary Section */}
         <div className="mt-8 px-[29px]">

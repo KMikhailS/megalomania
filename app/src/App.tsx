@@ -23,8 +23,21 @@ function App() {
     const [isAdminCardOpen, setIsAdminCardOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [adminReturnProduct, setAdminReturnProduct] = useState<Product | null>(null)
-    const [cartItems, setCartItems] = useState<CartItemData[]>([])
+    const [cartItems, setCartItems] = useState<CartItemData[]>(() => {
+        try {
+            const saved = localStorage.getItem('cart')
+            return saved ? JSON.parse(saved) : []
+        } catch {
+            return []
+        }
+    })
     const [cartReturnTo, setCartReturnTo] = useState<{tab: string; product: Product | null} | null>(null)
+    useEffect(() => {
+        try {
+            localStorage.setItem('cart', JSON.stringify(cartItems))
+        } catch { /* ignore quota errors */ }
+    }, [cartItems])
+
     const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
     const [isStoreAddressesOpen, setIsStoreAddressesOpen] = useState(false)
     const [selectedPickupAddress, setSelectedPickupAddress] = useState('')
