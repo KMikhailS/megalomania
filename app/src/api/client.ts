@@ -485,7 +485,7 @@ export async function fetchAllPromoBanners(initData: string): Promise<PromoBanne
  */
 export async function createPromoBanner(file: File, initData: string): Promise<PromoBannerDTO> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('image', file);
   const response = await fetch(`${API_BASE_URL}/promo`, {
     method: 'POST',
     headers: { 'Authorization': `tma ${initData}` },
