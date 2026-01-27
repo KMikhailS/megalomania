@@ -438,6 +438,142 @@ export async function updateShopAddress(
 /**
  * Delete shop address (ADMIN only)
  */
+// Promo Banner DTO
+export interface PromoBannerDTO {
+  id: number;
+  status: string;
+  display_order: number;
+  image_url: string;
+  link: number | null;
+}
+
+/**
+ * Fetch active promo banners (public endpoint)
+ */
+export async function fetchPromoBanners(): Promise<PromoBannerDTO[]> {
+  const response = await fetch(`${API_BASE_URL}/promo`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch promo banners: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Fetch all promo banners including blocked (ADMIN only)
+ */
+export async function fetchAllPromoBanners(initData: string): Promise<PromoBannerDTO[]> {
+  const response = await fetch(`${API_BASE_URL}/promo/all`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch all promo banners: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Create a new promo banner by uploading image (ADMIN only)
+ */
+export async function createPromoBanner(file: File, initData: string): Promise<PromoBannerDTO> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/promo`, {
+    method: 'POST',
+    headers: { 'Authorization': `tma ${initData}` },
+    body: formData,
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create promo banner: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Delete a promo banner (ADMIN only)
+ */
+export async function deletePromoBanner(bannerId: number, initData: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/promo/${bannerId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete promo banner: ${response.status} ${errorText}`);
+  }
+}
+
+/**
+ * Block a promo banner (ADMIN only)
+ */
+export async function blockPromoBanner(bannerId: number, initData: string): Promise<PromoBannerDTO> {
+  const response = await fetch(`${API_BASE_URL}/promo/${bannerId}/block`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to block promo banner: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Activate a promo banner (ADMIN only)
+ */
+export async function activatePromoBanner(bannerId: number, initData: string): Promise<PromoBannerDTO> {
+  const response = await fetch(`${API_BASE_URL}/promo/${bannerId}/activate`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to activate promo banner: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update promo banner link (ADMIN only)
+ */
+export async function updatePromoBannerLink(
+  bannerId: number,
+  link: number | null,
+  initData: string
+): Promise<PromoBannerDTO> {
+  const response = await fetch(`${API_BASE_URL}/promo/${bannerId}/link`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `tma ${initData}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ link }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update promo banner link: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
 export async function deleteShopAddress(
   addressId: number,
   initData: string

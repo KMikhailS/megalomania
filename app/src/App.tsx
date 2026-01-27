@@ -1,5 +1,5 @@
 import {useState, useEffect, useMemo, useCallback} from 'react'
-import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard, StoreAddresses} from './components'
+import {ProductCard, Cart, Favorites, Profile, BottomNavigation, ProductGrid, AdminProductCard, StoreAddresses, PromoBanner, AdminPromoBannerCard} from './components'
 import type {Product} from './components'
 
 // Интерфейс для товара в корзине
@@ -8,8 +8,8 @@ export interface CartItemData {
     quantity: number
     size: string
 }
-import {fetchGoods, fetchMyGoods, addFavorite, removeFavorite, fetchUserInfo, createGoodCard, addGoodImages, updateGoodCard, deleteGood, blockGood, activateGood, fetchAllGoods} from './api/client'
-import type {GoodDTO, ImageDTO, UserInfo} from './api/client'
+import {fetchGoods, fetchMyGoods, addFavorite, removeFavorite, fetchUserInfo, createGoodCard, addGoodImages, updateGoodCard, deleteGood, blockGood, activateGood, fetchAllGoods, fetchPromoBanners, fetchAllPromoBanners, createPromoBanner, deletePromoBanner, blockPromoBanner, activatePromoBanner, updatePromoBannerLink} from './api/client'
+import type {GoodDTO, ImageDTO, UserInfo, PromoBannerDTO} from './api/client'
 import {useTelegramWebApp} from './hooks/useTelegramWebApp'
 
 function App() {
@@ -28,6 +28,8 @@ function App() {
     const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
     const [isStoreAddressesOpen, setIsStoreAddressesOpen] = useState(false)
     const [selectedPickupAddress, setSelectedPickupAddress] = useState('')
+    const [banners, setBanners] = useState<PromoBannerDTO[]>([])
+    const [editingBanner, setEditingBanner] = useState<PromoBannerDTO | null>(null)
 
     // Добавление товара в корзину
     const handleAddToCart = useCallback((product: Product, size: string) => {
@@ -316,6 +318,94 @@ function App() {
         loadProducts()
     }, [loadProducts])
 
+    // Загрузка баннеров
+    const loadBanners = useCallback(async () => {
+        try {
+            const data = isAdminMode && webApp?.initData
+                ? await fetchAllPromoBanners(webApp.initData)
+                : await fetchPromoBanners()
+            setBanners(data)
+        } catch (error) {
+            console.error('Failed to fetch banners:', error)
+        }
+    }, [isAdminMode, webApp])
+
+    useEffect(() => {
+        loadBanners()
+    }, [loadBanners])
+
+    // Баннер: добавление нового
+    const handleAddBanner = async () => {
+        if (!webApp?.initData) return
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = 'image/jpeg,image/png,image/webp'
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0]
+            if (!file) return
+            try {
+                await createPromoBanner(file, webApp.initData)
+                await loadBanners()
+            } catch (error) {
+                console.error('Failed to create banner:', error)
+                alert('Ошибка при загрузке баннера')
+            }
+        }
+        input.click()
+    }
+
+    // Баннер: удаление
+    const handleDeleteBanner = async () => {
+        if (!editingBanner || !webApp?.initData) return
+        if (!confirm('Удалить этот баннер?')) return
+        try {
+            await deletePromoBanner(editingBanner.id, webApp.initData)
+            setEditingBanner(null)
+            await loadBanners()
+        } catch (error) {
+            console.error('Failed to delete banner:', error)
+            alert('Ошибка при удалении баннера')
+        }
+    }
+
+    // Баннер: блокировка/активация
+    const handleToggleBlockBanner = async () => {
+        if (!editingBanner || !webApp?.initData) return
+        try {
+            if (editingBanner.status === 'BLOCKED') {
+                await activatePromoBanner(editingBanner.id, webApp.initData)
+            } else {
+                await blockPromoBanner(editingBanner.id, webApp.initData)
+            }
+            setEditingBanner(null)
+            await loadBanners()
+        } catch (error) {
+            console.error('Failed to toggle banner status:', error)
+            alert('Ошибка при изменении статуса баннера')
+        }
+    }
+
+    // Баннер: сохранение ссылки
+    const handleSaveBannerLink = async (link: number | null) => {
+        if (!editingBanner || !webApp?.initData) return
+        try {
+            await updatePromoBannerLink(editingBanner.id, link, webApp.initData)
+            setEditingBanner(null)
+            await loadBanners()
+        } catch (error) {
+            console.error('Failed to update banner link:', error)
+            alert('Ошибка при сохранении ссылки')
+        }
+    }
+
+    // Баннер: клик по баннеру с ссылкой на товар
+    const handleBannerClick = (banner: PromoBannerDTO) => {
+        if (banner.link) {
+            const product = products.find(p => p.id === banner.link)
+            if (product) setSelectedProduct(product)
+        }
+    }
+
     // Управление Telegram BackButton для навигации назад
     useEffect(() => {
         if (!webApp) return
@@ -492,33 +582,14 @@ function App() {
                 </div>
 
                 {/* Banner */}
-                <div className="relative mb-4">
-                    <img
-                        src="/images/menu.svg"
-                        alt="Новая коллекция"
-                        className="w-full h-[180px] object-cover"
+                <div className="mb-4">
+                    <PromoBanner
+                        banners={banners}
+                        isAdminMode={isAdminMode}
+                        onAddNew={handleAddBanner}
+                        onEdit={setEditingBanner}
+                        onBannerClick={handleBannerClick}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <button className="absolute left-2 text-gray-300">
-                            <svg width="12" height="21" viewBox="0 0 12 21" fill="none">
-                                <path d="M11 1L2 10.5L11 20" stroke="#C7C7C7" strokeWidth="2"/>
-                            </svg>
-                        </button>
-                        <h2 className="text-green-500 font-extrabold text-lg tracking-wider">
-                            Н О В А Я К О Л Л Е К Ц И Я
-                        </h2>
-                        <button className="absolute right-2 text-gray-300">
-                            <svg width="12" height="21" viewBox="0 0 12 21" fill="none">
-                                <path d="M1 1L10 10.5L1 20" stroke="#C7C7C7" strokeWidth="2"/>
-                            </svg>
-                        </button>
-                    </div>
-                    {/* Dots */}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-white border border-white"/>
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/60 border border-white"/>
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/60 border border-white"/>
-                    </div>
                 </div>
 
                 {/* Categories */}
@@ -550,6 +621,17 @@ function App() {
 
             {/* Bottom Navigation */}
             <BottomNavigation activeTab={activeTab} onTabChange={handleTabChange} cartCount={cartCount}/>
+
+            {/* Admin Banner Card Modal */}
+            {editingBanner && (
+                <AdminPromoBannerCard
+                    banner={editingBanner}
+                    onClose={() => setEditingBanner(null)}
+                    onDelete={handleDeleteBanner}
+                    onBlock={handleToggleBlockBanner}
+                    onSave={handleSaveBannerLink}
+                />
+            )}
 
             {/* Admin Product Card Modal */}
             {isAdminCardOpen && (
