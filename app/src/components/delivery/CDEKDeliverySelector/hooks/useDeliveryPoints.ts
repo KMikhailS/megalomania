@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchCdekDeliveryPoints } from '../../../../api/client';
-import { useViewportCache } from './useViewportCache';
 import type { BoundingBox, DeliveryPoint } from '../../../../types/cdek';
 
 const MIN_ZOOM_FOR_POINTS = 11;
-const DEBOUNCE_DELAY = 300;
+const DEBOUNCE_DELAY = 500;
 
 interface WarningInfo {
   code: string;
@@ -26,9 +25,9 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<WarningInfo | null>(null);
 
-  const { getFromCache, saveToCache } = useViewportCache();
   const debounceTimerRef = useRef<number | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+  const allPointsRef = useRef<Map<string, DeliveryPoint>>(new Map());
 
   const loadPoints = useCallback(
     (bbox: BoundingBox, zoom: number) => {
@@ -37,14 +36,8 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
         window.clearTimeout(debounceTimerRef.current);
       }
 
-      // Проверка zoom до debounce
+      // Проверка zoom
       if (zoom < MIN_ZOOM_FOR_POINTS) {
-        // Отменяем текущий запрос если есть
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-          abortControllerRef.current = null;
-        }
-        setPoints([]);
         setWarning({
           code: 'ZOOM_TOO_LOW',
           message: 'Приблизьте карту для отображения пунктов выдачи',
@@ -52,65 +45,63 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
         });
         setError(null);
         setIsLoading(false);
+        // Не очищаем points - показываем что было
         return;
       }
 
       setWarning(null);
 
       debounceTimerRef.current = window.setTimeout(async () => {
-        // Проверяем кэш
-        const cached = getFromCache(bbox);
-        if (cached) {
-          setPoints(cached);
-          setIsLoading(false);
-          return;
-        }
-
-        // Отменяем предыдущий запрос только перед началом нового
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-        }
+        const currentRequestId = ++requestIdRef.current;
 
         setIsLoading(true);
         setError(null);
-        abortControllerRef.current = new AbortController();
 
         try {
-          const response = await fetchCdekDeliveryPoints(
-            bbox,
-            zoom,
-            undefined,
-            abortControllerRef.current.signal
-          );
+          const response = await fetchCdekDeliveryPoints(bbox, zoom);
+
+          // Игнорируем устаревший ответ
+          if (currentRequestId !== requestIdRef.current) {
+            return;
+          }
 
           if (response.warning) {
             setWarning(response.warning);
-            setPoints([]);
-          } else {
-            setPoints(response.points);
-            saveToCache(bbox, response.points);
+          } else if (response.points && response.points.length > 0) {
+            // Добавляем новые точки к существующим
+            for (const point of response.points) {
+              if (point.code) {
+                allPointsRef.current.set(point.code, point);
+              }
+            }
+            // Фильтруем точки по текущему bbox
+            const visiblePoints = Array.from(allPointsRef.current.values()).filter(
+              (p) =>
+                p.coordinates.latitude >= bbox.south &&
+                p.coordinates.latitude <= bbox.north &&
+                p.coordinates.longitude >= bbox.west &&
+                p.coordinates.longitude <= bbox.east
+            );
+            setPoints(visiblePoints);
           }
         } catch (err) {
-          const errorName = (err as Error).name;
-          if (errorName !== 'AbortError') {
+          if (currentRequestId === requestIdRef.current) {
             setError('Не удалось загрузить пункты выдачи');
           }
-          // При AbortError не трогаем points - оставляем предыдущие
         } finally {
-          setIsLoading(false);
+          if (currentRequestId === requestIdRef.current) {
+            setIsLoading(false);
+          }
         }
       }, DEBOUNCE_DELAY);
     },
-    [getFromCache, saveToCache]
+    []
   );
 
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         window.clearTimeout(debounceTimerRef.current);
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
       }
     };
   }, []);
