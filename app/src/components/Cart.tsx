@@ -3,6 +3,14 @@ import { useDebounce } from '../hooks/useDebounce'
 import { suggestAddress, type AddressSuggestion } from '../api/client'
 
 // Типы для СДЭК виджета
+interface CDEKTariff {
+  tariff_code?: number
+  tariff_name?: string
+  delivery_sum?: number
+  period_min?: number
+  period_max?: number
+}
+
 interface CDEKWidgetOptions {
   from?: string
   root?: string
@@ -33,7 +41,7 @@ interface CDEKWidgetOptions {
   }
   onReady?: () => void
   onCalculate?: (data: unknown) => void
-  onChoose?: (mode: string, tariff: unknown, address: CDEKAddress) => void
+  onChoose?: (mode: string, tariff: CDEKTariff, address: CDEKAddress) => void
 }
 
 interface CDEKAddress {
@@ -98,6 +106,8 @@ export function Cart({
   // СДЭК состояния
   const [selectedCdekAddress, setSelectedCdekAddress] = useState<string>('')
   const [selectedCdekCode, setSelectedCdekCode] = useState<string>('')
+  const [cdekDeliveryCost, setCdekDeliveryCost] = useState<number>(0)
+  const [cdekDeliveryPeriod, setCdekDeliveryPeriod] = useState<string>('')
   const [showCdekWidget, setShowCdekWidget] = useState(false)
   const cdekWidgetRef = useRef<CDEKWidgetInstance | null>(null)
   const cdekContainerRef = useRef<HTMLDivElement>(null)
@@ -152,11 +162,26 @@ export function Cart({
         onReady: () => {
           console.log('CDEK Widget ready')
         },
-        onChoose: (_mode, _tariff, address) => {
-          console.log('CDEK address selected:', address)
+        onChoose: (_mode, tariff, address) => {
+          console.log('CDEK address selected:', address, 'tariff:', tariff)
           const fullAddress = [address.city, address.address].filter(Boolean).join(', ')
           setSelectedCdekAddress(fullAddress)
           setSelectedCdekCode(address.code || '')
+
+          // Сохраняем стоимость доставки
+          if (tariff?.delivery_sum) {
+            setCdekDeliveryCost(Math.ceil(tariff.delivery_sum))
+          }
+
+          // Формируем срок доставки
+          if (tariff?.period_min && tariff?.period_max) {
+            if (tariff.period_min === tariff.period_max) {
+              setCdekDeliveryPeriod(`${tariff.period_min} дн.`)
+            } else {
+              setCdekDeliveryPeriod(`${tariff.period_min}-${tariff.period_max} дн.`)
+            }
+          }
+
           setShowCdekWidget(false)
         }
       })
@@ -186,7 +211,10 @@ export function Cart({
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + parsePrice(item.product.price) * item.quantity
   }, 0)
-  const deliveryCost = deliveryMethod === 'courier' ? 200 : 0
+  const deliveryCost =
+    deliveryMethod === 'courier' ? 200 :
+    deliveryMethod === 'cdek' ? cdekDeliveryCost :
+    0
   const total = subtotal + deliveryCost
 
   const itemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
@@ -397,6 +425,13 @@ export function Cart({
                       Код ПВЗ: {selectedCdekCode}
                     </p>
                   )}
+                  {(cdekDeliveryCost > 0 || cdekDeliveryPeriod) && (
+                    <p className="text-[13px] font-medium tracking-[-0.006em] mt-2">
+                      {cdekDeliveryCost > 0 && `${cdekDeliveryCost} ₽`}
+                      {cdekDeliveryCost > 0 && cdekDeliveryPeriod && ' • '}
+                      {cdekDeliveryPeriod && `Срок: ${cdekDeliveryPeriod}`}
+                    </p>
+                  )}
                   <button
                     onClick={handleOpenCdekWidget}
                     className="mt-3 text-[14px] tracking-[-0.014em] text-black underline hover:opacity-70"
@@ -536,9 +571,11 @@ export function Cart({
               {subtotal.toLocaleString('ru-RU')} ₽
             </span>
           </div>
-          {deliveryMethod === 'courier' && (
+          {(deliveryMethod === 'courier' || (deliveryMethod === 'cdek' && cdekDeliveryCost > 0)) && (
             <div className="flex justify-between py-1">
-              <span className="text-[15px] font-light tracking-[-0.005em]">Доставка</span>
+              <span className="text-[15px] font-light tracking-[-0.005em]">
+                Доставка{deliveryMethod === 'cdek' && cdekDeliveryPeriod ? ` (${cdekDeliveryPeriod})` : ''}
+              </span>
               <span className="text-[15px] font-light tracking-[-0.005em]">
                 {cartItems.length > 0 ? deliveryCost : 0} ₽
               </span>

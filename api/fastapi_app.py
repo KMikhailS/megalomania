@@ -2,6 +2,10 @@ import logging
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+
+# Загружаем .env ДО импорта роутеров, чтобы переменные были доступны
+load_dotenv()
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +13,6 @@ from fastapi.staticfiles import StaticFiles
 from routers import users, goods, uploads, shop_addresses, health, promo_banners, categories, orders, dadata, favorites, cdek
 
 logger = logging.getLogger(__name__)
-load_dotenv()
 
 APP_URL = os.getenv("APP_URL")
 
