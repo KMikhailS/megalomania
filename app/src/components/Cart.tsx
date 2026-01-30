@@ -240,14 +240,22 @@ export function Cart({
       })
   }, [])
 
-  // Предзагрузка виджета при выборе способа доставки СДЭК
+  // Прогрев скрипта при выборе способа доставки СДЭК
   useEffect(() => {
     if (deliveryMethod !== 'cdek') return
+    loadCdekWidgetScript().catch((error) => {
+      console.error('Failed to load CDEK Widget script:', error)
+    })
+  }, [deliveryMethod])
+
+  // Инициализируем виджет только при открытии модалки
+  useEffect(() => {
+    if (!showCdekWidget || cdekWidgetRef.current) return
+    setIsCdekWidgetReady(false)
     initCdekWidget()
-  }, [deliveryMethod, initCdekWidget])
+  }, [showCdekWidget, initCdekWidget])
 
   const handleOpenCdekWidget = () => {
-    initCdekWidget()
     setShowCdekWidget(true)
   }
 
