@@ -109,6 +109,8 @@ export function Cart({
   const [cdekDeliveryCost, setCdekDeliveryCost] = useState<number>(0)
   const [cdekDeliveryPeriod, setCdekDeliveryPeriod] = useState<string>('')
   const [showCdekWidget, setShowCdekWidget] = useState(false)
+  const [isCdekWidgetReady, setIsCdekWidgetReady] = useState(false)
+  const [isCdekWidgetInitialized, setIsCdekWidgetInitialized] = useState(false)
   const cdekWidgetRef = useRef<CDEKWidgetInstance | null>(null)
   const cdekContainerRef = useRef<HTMLDivElement>(null)
 
@@ -137,62 +139,66 @@ export function Cart({
     fetchSuggestions()
   }, [debouncedAddress, deliveryMethod])
 
-  // Инициализация виджета СДЭК
+  // Предварительная инициализация виджета СДЭК при выборе способа доставки
   useEffect(() => {
-    if (!showCdekWidget || !cdekContainerRef.current) return
+    // Инициализируем виджет когда выбрана доставка СДЭК и контейнер готов
+    if (deliveryMethod !== 'cdek' || isCdekWidgetInitialized) return
 
-    // Ждём загрузки скрипта виджета
-    if (!window.CDEKWidget) {
-      console.error('CDEK Widget not loaded')
-      return
-    }
+    // Ждём появления контейнера в DOM
+    const initWidget = () => {
+      const container = document.getElementById('cdek-widget-container')
+      if (!container || !window.CDEKWidget) return
 
-    try {
-      cdekWidgetRef.current = new window.CDEKWidget({
-        from: 'Москва',
-        root: 'cdek-widget-container',
-        apiKey: '3878f4b1-b0c2-4623-8ddse-9781243e39f0',
-        servicePath: '/api/cdek/service.php',
-        defaultLocation: 'Москва',
-        lang: 'rus',
-        currency: 'RUB',
-        hideDeliveryOptions: {
-          door: true // Скрываем доставку до двери, показываем только ПВЗ
-        },
-        onReady: () => {
-          console.log('CDEK Widget ready')
-        },
-        onChoose: (_mode, tariff, address) => {
-          console.log('CDEK address selected:', address, 'tariff:', tariff)
-          const fullAddress = [address.city, address.address].filter(Boolean).join(', ')
-          setSelectedCdekAddress(fullAddress)
-          setSelectedCdekCode(address.code || '')
+      try {
+        setIsCdekWidgetReady(false)
+        cdekWidgetRef.current = new window.CDEKWidget({
+          from: 'Москва',
+          root: 'cdek-widget-container',
+          apiKey: '3878f4b1-b0c2-4623-8ddse-9781243e39f0',
+          servicePath: '/api/cdek/service.php',
+          defaultLocation: 'Москва',
+          lang: 'rus',
+          currency: 'RUB',
+          hideDeliveryOptions: {
+            door: true // Скрываем доставку до двери, показываем только ПВЗ
+          },
+          onReady: () => {
+            console.log('CDEK Widget ready')
+            setIsCdekWidgetReady(true)
+          },
+          onChoose: (_mode, tariff, address) => {
+            console.log('CDEK address selected:', address, 'tariff:', tariff)
+            const fullAddress = [address.city, address.address].filter(Boolean).join(', ')
+            setSelectedCdekAddress(fullAddress)
+            setSelectedCdekCode(address.code || '')
 
-          // Сохраняем стоимость доставки
-          if (tariff?.delivery_sum) {
-            setCdekDeliveryCost(Math.ceil(tariff.delivery_sum))
-          }
-
-          // Формируем срок доставки
-          if (tariff?.period_min && tariff?.period_max) {
-            if (tariff.period_min === tariff.period_max) {
-              setCdekDeliveryPeriod(`${tariff.period_min} дн.`)
-            } else {
-              setCdekDeliveryPeriod(`${tariff.period_min}-${tariff.period_max} дн.`)
+            // Сохраняем стоимость доставки
+            if (tariff?.delivery_sum) {
+              setCdekDeliveryCost(Math.ceil(tariff.delivery_sum))
             }
+
+            // Формируем срок доставки
+            if (tariff?.period_min && tariff?.period_max) {
+              if (tariff.period_min === tariff.period_max) {
+                setCdekDeliveryPeriod(`${tariff.period_min} дн.`)
+              } else {
+                setCdekDeliveryPeriod(`${tariff.period_min}-${tariff.period_max} дн.`)
+              }
+            }
+
+            setShowCdekWidget(false)
           }
-
-          setShowCdekWidget(false)
-        }
-      })
-    } catch (error) {
-      console.error('Failed to initialize CDEK Widget:', error)
+        })
+        setIsCdekWidgetInitialized(true)
+      } catch (error) {
+        console.error('Failed to initialize CDEK Widget:', error)
+      }
     }
 
-    return () => {
-      cdekWidgetRef.current = null
-    }
-  }, [showCdekWidget])
+    // Небольшая задержка для появления контейнера в DOM
+    const timer = setTimeout(initWidget, 100)
+    return () => clearTimeout(timer)
+  }, [deliveryMethod, isCdekWidgetInitialized])
 
   const handleOpenCdekWidget = () => {
     setShowCdekWidget(true)
@@ -602,30 +608,41 @@ export function Cart({
         </div>
       </div>
 
-      {/* CDEK Widget Modal */}
+      {/* CDEK Widget Container - скрытый, инициализируется при выборе СДЭК */}
+      {deliveryMethod === 'cdek' && (
+        <div
+          id="cdek-widget-container"
+          ref={cdekContainerRef}
+          className={`fixed inset-0 z-40 ${showCdekWidget ? '' : 'pointer-events-none opacity-0'}`}
+          style={{ visibility: showCdekWidget ? 'visible' : 'hidden' }}
+        />
+      )}
+
+      {/* CDEK Widget Modal Overlay */}
       {showCdekWidget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full h-full max-w-[100vw] max-h-[100vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h2 className="text-[17px] font-semibold">Выберите пункт выдачи</h2>
-              <button
-                onClick={handleCloseCdekWidget}
-                className="p-2 text-gray-500 hover:text-black"
-                aria-label="Закрыть"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            {/* Widget Container */}
-            <div
-              id="cdek-widget-container"
-              ref={cdekContainerRef}
-              className="flex-1 min-h-[500px]"
-            />
+        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+            <h2 className="text-[17px] font-semibold">Выберите пункт выдачи</h2>
+            <button
+              onClick={handleCloseCdekWidget}
+              className="p-2 text-gray-500 hover:text-black"
+              aria-label="Закрыть"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           </div>
+          {/* Loading indicator */}
+          {!isCdekWidgetReady && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-[14px] text-gray-500">Загрузка карты...</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
