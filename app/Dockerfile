@@ -9,6 +9,10 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --legacy-peer-deps
 
+ARG VITE_YANDEX_MAP_API_KEY
+
+ENV VITE_YANDEX_MAP_API_KEY=$VITE_YANDEX_MAP_API_KEY
+
 # Copy source code
 COPY . .
 

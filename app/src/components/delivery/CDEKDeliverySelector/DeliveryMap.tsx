@@ -22,6 +22,8 @@ export function DeliveryMap({
   const mapRef = useRef<any>(null);
   const { points, isLoading, error, warning, loadPoints } = useDeliveryPoints();
 
+  const VITE_YANDEX_MAP_API_KEY = import.meta.env.VITE_YANDEX_MAP_API_KEY
+
   const handleBoundsChange = useCallback(
     (event: any) => {
       const map = event.get('target');
@@ -98,7 +100,7 @@ export function DeliveryMap({
   return (
     <div className={styles.mapContainer}>
       {/*<YMaps query={{ apikey: import.meta.env.VITE_YANDEX_MAPS_KEY }}>*/}
-      <YMaps query={{ apikey: '3878f4b1-b0c2-4623-8ddse-9781243e39f0' }}>
+      <YMaps query={{ apikey: VITE_YANDEX_MAP_API_KEY }}>
         <Map
           defaultState={{
             center,
