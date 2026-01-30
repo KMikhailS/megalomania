@@ -1,6 +1,59 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDebounce } from '../hooks/useDebounce'
 import { suggestAddress, type AddressSuggestion } from '../api/client'
+
+// Типы для СДЭК виджета
+interface CDEKWidgetOptions {
+  from?: string
+  root?: string
+  apiKey?: string
+  servicePath?: string
+  defaultLocation?: string | [number, number]
+  lang?: 'rus' | 'eng'
+  currency?: string
+  tariffs?: {
+    office?: number[]
+    door?: number[]
+  }
+  goods?: Array<{
+    width: number
+    height: number
+    length: number
+    weight: number
+  }>
+  hideFilters?: {
+    have_cashless?: boolean
+    have_cash?: boolean
+    is_dressing_room?: boolean
+    type?: boolean
+  }
+  hideDeliveryOptions?: {
+    door?: boolean
+    office?: boolean
+  }
+  onReady?: () => void
+  onCalculate?: (data: unknown) => void
+  onChoose?: (mode: string, tariff: unknown, address: CDEKAddress) => void
+}
+
+interface CDEKAddress {
+  code?: string
+  name?: string
+  address?: string
+  city?: string
+  postal_code?: string
+}
+
+interface CDEKWidgetInstance {
+  open: () => void
+  close: () => void
+}
+
+declare global {
+  interface Window {
+    CDEKWidget?: new (options: CDEKWidgetOptions) => CDEKWidgetInstance
+  }
+}
 
 interface Product {
   id: number
@@ -35,12 +88,19 @@ export function Cart({
   selectedPickupAddress = '',
   onOpenStoreAddresses
 }: CartProps) {
-  const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier')
+  const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup' | 'cdek'>('courier')
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+
+  // СДЭК состояния
+  const [selectedCdekAddress, setSelectedCdekAddress] = useState<string>('')
+  const [selectedCdekCode, setSelectedCdekCode] = useState<string>('')
+  const [showCdekWidget, setShowCdekWidget] = useState(false)
+  const cdekWidgetRef = useRef<CDEKWidgetInstance | null>(null)
+  const cdekContainerRef = useRef<HTMLDivElement>(null)
 
   const debouncedAddress = useDebounce(deliveryAddress, 300)
 
@@ -66,6 +126,55 @@ export function Cart({
 
     fetchSuggestions()
   }, [debouncedAddress, deliveryMethod])
+
+  // Инициализация виджета СДЭК
+  useEffect(() => {
+    if (!showCdekWidget || !cdekContainerRef.current) return
+
+    // Ждём загрузки скрипта виджета
+    if (!window.CDEKWidget) {
+      console.error('CDEK Widget not loaded')
+      return
+    }
+
+    try {
+      cdekWidgetRef.current = new window.CDEKWidget({
+        from: 'Москва',
+        root: 'cdek-widget-container',
+        apiKey: '3878f4b1-b0c2-4623-8ddse-9781243e39f0',
+        defaultLocation: 'Москва',
+        lang: 'rus',
+        currency: 'RUB',
+        hideDeliveryOptions: {
+          door: true // Скрываем доставку до двери, показываем только ПВЗ
+        },
+        onReady: () => {
+          console.log('CDEK Widget ready')
+        },
+        onChoose: (_mode, _tariff, address) => {
+          console.log('CDEK address selected:', address)
+          const fullAddress = [address.city, address.address].filter(Boolean).join(', ')
+          setSelectedCdekAddress(fullAddress)
+          setSelectedCdekCode(address.code || '')
+          setShowCdekWidget(false)
+        }
+      })
+    } catch (error) {
+      console.error('Failed to initialize CDEK Widget:', error)
+    }
+
+    return () => {
+      cdekWidgetRef.current = null
+    }
+  }, [showCdekWidget])
+
+  const handleOpenCdekWidget = () => {
+    setShowCdekWidget(true)
+  }
+
+  const handleCloseCdekWidget = () => {
+    setShowCdekWidget(false)
+  }
 
   // Парсинг цены из строки "8 500 ₽" в число
   const parsePrice = (priceStr: string): number => {
@@ -194,7 +303,7 @@ export function Cart({
           <div className="px-[29px] py-2 flex items-start gap-4">
             <div className="flex-1">
               <p className="text-[12px] font-light leading-[1.83] tracking-[-0.007em]">
-                Доставка курьером СДЕК{'\n'}(Без примерки)
+                Доставка курьером{'\n'}(Без примерки)
               </p>
             </div>
             <button
@@ -223,6 +332,23 @@ export function Cart({
               )}
             </button>
           </div>
+
+          {/* CDEK Option */}
+          <div className="px-[29px] py-2 flex items-start gap-4">
+            <div className="flex-1">
+              <p className="text-[12px] font-light leading-[1.83] tracking-[-0.007em]">
+                Доставка СДЭК{'\n'}(Пункты выдачи по всей России)
+              </p>
+            </div>
+            <button
+              onClick={() => setDeliveryMethod('cdek')}
+              className={`w-[17px] h-[17px] rounded-full border-[1.5px] border-black flex items-center justify-center`}
+            >
+              {deliveryMethod === 'cdek' && (
+                <div className="w-[11px] h-[11px] rounded-full bg-black" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Pickup Address Section */}
@@ -247,6 +373,48 @@ export function Cart({
                 <p className="text-[13px] font-light tracking-[-0.006em] text-gray-400">
                   Выберите адрес магазина
                 </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* CDEK Address Section */}
+        {deliveryMethod === 'cdek' && (
+          <div className="mt-4">
+            <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
+            <div className="px-[29px] py-3">
+              <span className="text-[17px] tracking-[-0.014em]">Пункт выдачи СДЭК</span>
+            </div>
+            <div className="px-[29px]">
+              {selectedCdekAddress ? (
+                <div>
+                  <p className="text-[13px] font-light tracking-[-0.006em]">
+                    {selectedCdekAddress}
+                  </p>
+                  {selectedCdekCode && (
+                    <p className="text-[11px] font-light tracking-[-0.006em] text-gray-500 mt-1">
+                      Код ПВЗ: {selectedCdekCode}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleOpenCdekWidget}
+                    className="mt-3 text-[14px] tracking-[-0.014em] text-black underline hover:opacity-70"
+                  >
+                    Изменить
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[13px] font-light tracking-[-0.006em] text-gray-400 mb-3">
+                    Выберите пункт выдачи на карте
+                  </p>
+                  <button
+                    onClick={handleOpenCdekWidget}
+                    className="w-full h-[44px] bg-black text-white text-[14px] tracking-[-0.01em]"
+                  >
+                    Оформить доставку
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -395,6 +563,33 @@ export function Cart({
           </button>
         </div>
       </div>
+
+      {/* CDEK Widget Modal */}
+      {showCdekWidget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white w-full h-full max-w-[100vw] max-h-[100vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h2 className="text-[17px] font-semibold">Выберите пункт выдачи</h2>
+              <button
+                onClick={handleCloseCdekWidget}
+                className="p-2 text-gray-500 hover:text-black"
+                aria-label="Закрыть"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            {/* Widget Container */}
+            <div
+              id="cdek-widget-container"
+              ref={cdekContainerRef}
+              className="flex-1 min-h-[500px]"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
