@@ -15,7 +15,14 @@ interface CDEKDeliverySelectorProps {
   onSelect: (point: DeliveryPoint, cost: DeliveryCost | null) => void;
 }
 
-const DEFAULT_CENTER: [number, number] = [55.7558, 37.6173];
+// Default city: Moscow
+const DEFAULT_CITY: CdekCity = {
+  code: 44,
+  name: 'Москва',
+  region: '',
+  latitude: 55.7558,
+  longitude: 37.6173,
+};
 const DEFAULT_ZOOM = 11;
 
 export function CDEKDeliverySelector({
@@ -26,9 +33,9 @@ export function CDEKDeliverySelector({
   selectedCost,
   onSelect,
 }: CDEKDeliverySelectorProps) {
-  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [center, setCenter] = useState<[number, number]>([DEFAULT_CITY.latitude, DEFAULT_CITY.longitude]);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [selectedCity, setSelectedCity] = useState<CdekCity | null>(null);
+  const [selectedCity, setSelectedCity] = useState<CdekCity | null>(DEFAULT_CITY);
   const [activePoint, setActivePoint] = useState<DeliveryPoint | null>(null);
   const [localCost, setLocalCost] = useState<DeliveryCost | null>(null);
 
@@ -77,6 +84,7 @@ export function CDEKDeliverySelector({
 
       <div className={styles.selectorBody}>
         <CitySelector
+          initialCity={DEFAULT_CITY}
           onSelectCity={(city) => {
             setSelectedCity(city);
             setCenter([city.latitude, city.longitude]);

@@ -1,8 +1,11 @@
+import logging
 from typing import List, Optional
 
 from .cache import TTLCache
 from .client import CDEKClient
 from .settings import CDEKSettings
+
+logger = logging.getLogger(__name__)
 
 
 class CDEKDeliveryPointsService:
@@ -58,7 +61,7 @@ class CDEKDeliveryPointsService:
             if not isinstance(raw, list):
                 return []
 
-            return [
+            cities = [
                 {
                     "code": city.get("code"),
                     "name": city.get("city") or city.get("name") or "",
@@ -69,7 +72,14 @@ class CDEKDeliveryPointsService:
                 for city in raw
                 if city.get("code")
             ][:limit]
-        except Exception:
+
+            logger.info(f"Search cities '{query}': found {len(cities)} cities")
+            for c in cities[:3]:
+                logger.info(f"  - {c['name']} (code={c['code']}, region={c['region']})")
+
+            return cities
+        except Exception as e:
+            logger.error(f"Error searching cities: {e}")
             return []
 
     async def _fetch_points_by_city(self, city_code: int) -> List[dict]:
@@ -77,8 +87,10 @@ class CDEKDeliveryPointsService:
         cache_key = f"cdek:points:city:{city_code}"
         cached = await self.cache.get(cache_key)
         if cached:
+            logger.info(f"Cache hit for city_code={city_code}, points={len(cached)}")
             return cached
 
+        logger.info(f"Fetching delivery points for city_code={city_code}")
         points: list[dict] = []
         page = 0
         size = 500
@@ -93,6 +105,8 @@ class CDEKDeliveryPointsService:
                         "size": size,
                     },
                 )
+
+                logger.info(f"Page {page}: got {len(raw) if isinstance(raw, list) else 0} points")
 
                 if not isinstance(raw, list) or not raw:
                     break
@@ -109,9 +123,11 @@ class CDEKDeliveryPointsService:
                     break
                 page += 1
 
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error fetching points: {e}")
                 break
 
+        logger.info(f"Total points for city_code={city_code}: {len(points)}")
         await self.cache.set(cache_key, points, ttl=self.settings.points_cache_ttl)
         return points
 
