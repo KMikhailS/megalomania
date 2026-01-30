@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import JSONResponse
 from typing import Optional
@@ -13,6 +14,8 @@ router = APIRouter(prefix="/cdek", tags=["cdek"])
 CDEK_ACCOUNT = os.getenv("CDEK_ACCOUNT")
 CDEK_SECURE = os.getenv("CDEK_SECURE")
 CDEK_API_URL = "https://api.cdek.ru/v2"
+_CDEK_TOKEN: Optional[str] = None
+_CDEK_TOKEN_EXPIRES_AT: float = 0.0
 
 
 async def get_cdek_token() -> Optional[str]:
@@ -20,6 +23,10 @@ async def get_cdek_token() -> Optional[str]:
     if not CDEK_ACCOUNT or not CDEK_SECURE:
         logger.error("CDEK credentials not configured")
         return None
+
+    global _CDEK_TOKEN, _CDEK_TOKEN_EXPIRES_AT
+    if _CDEK_TOKEN and time.time() < _CDEK_TOKEN_EXPIRES_AT:
+        return _CDEK_TOKEN
 
     try:
         async with httpx.AsyncClient() as client:
@@ -36,7 +43,21 @@ async def get_cdek_token() -> Optional[str]:
                 return None
 
             data = response.json()
-            return data["access_token"]
+            token = data.get("access_token")
+            if not token:
+                logger.error("CDEK token missing in response")
+                return None
+
+            expires_in = data.get("expires_in", 3600)
+            try:
+                expires_in = int(expires_in)
+            except (TypeError, ValueError):
+                expires_in = 3600
+
+            # Обновляем токен с запасом, чтобы избежать работы на грани истечения.
+            _CDEK_TOKEN = token
+            _CDEK_TOKEN_EXPIRES_AT = time.time() + max(60, expires_in - 60)
+            return token
     except Exception as e:
         logger.error(f"Error getting CDEK token: {e}")
         return None

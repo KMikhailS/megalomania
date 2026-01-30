@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useDebounce } from '../hooks/useDebounce'
 import { suggestAddress, type AddressSuggestion } from '../api/client'
 
@@ -63,6 +63,45 @@ declare global {
   }
 }
 
+const CDEK_WIDGET_SRC = 'https://cdn.jsdelivr.net/npm/@cdek-it/widget@3'
+let cdekScriptPromise: Promise<void> | null = null
+
+const loadCdekWidgetScript = () => {
+  if (window.CDEKWidget) return Promise.resolve()
+  if (cdekScriptPromise) return cdekScriptPromise
+
+  cdekScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector(
+      `script[src="${CDEK_WIDGET_SRC}"]`
+    ) as HTMLScriptElement | null
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(), { once: true })
+      existingScript.addEventListener(
+        'error',
+        () => {
+          cdekScriptPromise = null
+          reject(new Error('Failed to load CDEK Widget script'))
+        },
+        { once: true }
+      )
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = CDEK_WIDGET_SRC
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => {
+      cdekScriptPromise = null
+      reject(new Error('Failed to load CDEK Widget script'))
+    }
+    document.head.appendChild(script)
+  })
+
+  return cdekScriptPromise
+}
+
 interface Product {
   id: number
   name: string
@@ -110,7 +149,7 @@ export function Cart({
   const [cdekDeliveryPeriod, setCdekDeliveryPeriod] = useState<string>('')
   const [showCdekWidget, setShowCdekWidget] = useState(false)
   const [isCdekWidgetReady, setIsCdekWidgetReady] = useState(false)
-  const [isCdekWidgetInitialized, setIsCdekWidgetInitialized] = useState(false)
+  const [isCdekWidgetLoading, setIsCdekWidgetLoading] = useState(false)
   const cdekWidgetRef = useRef<CDEKWidgetInstance | null>(null)
   const cdekContainerRef = useRef<HTMLDivElement>(null)
 
@@ -139,18 +178,22 @@ export function Cart({
     fetchSuggestions()
   }, [debouncedAddress, deliveryMethod])
 
-  // Предварительная инициализация виджета СДЭК при выборе способа доставки
-  useEffect(() => {
-    // Инициализируем виджет когда выбрана доставка СДЭК и контейнер готов
-    if (deliveryMethod !== 'cdek' || isCdekWidgetInitialized) return
+  const initCdekWidget = useCallback(() => {
+    if (cdekWidgetRef.current) return
+    setIsCdekWidgetLoading(true)
 
-    // Ждём появления контейнера в DOM
-    const initWidget = () => {
-      const container = document.getElementById('cdek-widget-container')
-      if (!container || !window.CDEKWidget) return
+    loadCdekWidgetScript()
+      .then(() => {
+        if (cdekWidgetRef.current) return
+        if (!cdekContainerRef.current) {
+          setIsCdekWidgetLoading(false)
+          return
+        }
 
-      try {
-        setIsCdekWidgetReady(false)
+        if (!window.CDEKWidget) {
+          throw new Error('CDEK Widget not loaded')
+        }
+
         cdekWidgetRef.current = new window.CDEKWidget({
           from: 'Москва',
           root: 'cdek-widget-container',
@@ -165,6 +208,7 @@ export function Cart({
           onReady: () => {
             console.log('CDEK Widget ready')
             setIsCdekWidgetReady(true)
+            setIsCdekWidgetLoading(false)
           },
           onChoose: (_mode, tariff, address) => {
             console.log('CDEK address selected:', address, 'tariff:', tariff)
@@ -189,18 +233,21 @@ export function Cart({
             setShowCdekWidget(false)
           }
         })
-        setIsCdekWidgetInitialized(true)
-      } catch (error) {
-        console.error('Failed to initialize CDEK Widget:', error)
-      }
-    }
+      })
+      .catch((error) => {
+        console.error('Failed to load CDEK Widget script:', error)
+        setIsCdekWidgetLoading(false)
+      })
+  }, [])
 
-    // Небольшая задержка для появления контейнера в DOM
-    const timer = setTimeout(initWidget, 100)
-    return () => clearTimeout(timer)
-  }, [deliveryMethod, isCdekWidgetInitialized])
+  // Предзагрузка виджета при выборе способа доставки СДЭК
+  useEffect(() => {
+    if (deliveryMethod !== 'cdek') return
+    initCdekWidget()
+  }, [deliveryMethod, initCdekWidget])
 
   const handleOpenCdekWidget = () => {
+    initCdekWidget()
     setShowCdekWidget(true)
   }
 
@@ -608,21 +655,16 @@ export function Cart({
         </div>
       </div>
 
-      {/* CDEK Widget Container - скрытый, инициализируется при выборе СДЭК */}
-      {deliveryMethod === 'cdek' && (
-        <div
-          id="cdek-widget-container"
-          ref={cdekContainerRef}
-          className={`fixed inset-0 z-40 ${showCdekWidget ? '' : 'pointer-events-none opacity-0'}`}
-          style={{ visibility: showCdekWidget ? 'visible' : 'hidden' }}
-        />
-      )}
-
-      {/* CDEK Widget Modal Overlay */}
-      {showCdekWidget && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+      {/* CDEK Widget Modal */}
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity ${
+          showCdekWidget ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={!showCdekWidget}
+      >
+        <div className="bg-white w-full h-full max-w-[100vw] max-h-[100vh] flex flex-col">
           {/* Modal Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
             <h2 className="text-[17px] font-semibold">Выберите пункт выдачи</h2>
             <button
               onClick={handleCloseCdekWidget}
@@ -634,17 +676,23 @@ export function Cart({
               </svg>
             </button>
           </div>
-          {/* Loading indicator */}
-          {!isCdekWidgetReady && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-[14px] text-gray-500">Загрузка карты...</p>
+          {/* Widget Container */}
+          <div className="flex-1 min-h-[500px] relative">
+            <div
+              id="cdek-widget-container"
+              ref={cdekContainerRef}
+              className="w-full h-full"
+            />
+            {!isCdekWidgetReady && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white">
+                <span className="text-[14px] text-gray-500">
+                  {isCdekWidgetLoading ? 'Загрузка карты…' : 'Подготовка виджета…'}
+                </span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
