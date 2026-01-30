@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useDebounce } from '../hooks/useDebounce'
 import { suggestAddress, type AddressSuggestion } from '../api/client'
+import { CDEKDeliverySelector } from './delivery/CDEKDeliverySelector'
+import type { DeliveryCost, DeliveryPoint } from '../types/cdek'
 
 interface Product {
   id: number
@@ -35,14 +37,29 @@ export function Cart({
   selectedPickupAddress = '',
   onOpenStoreAddresses
 }: CartProps) {
-  const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier')
+  const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup' | 'cdek'>('courier')
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  const [isCdekSelectorOpen, setIsCdekSelectorOpen] = useState(false)
+  const [selectedCdekPoint, setSelectedCdekPoint] = useState<DeliveryPoint | null>(null)
+  const [selectedCdekCost, setSelectedCdekCost] = useState<DeliveryCost | null>(null)
 
   const debouncedAddress = useDebounce(deliveryAddress, 300)
+
+  const cdekPackageInfo = useMemo(() => {
+    const basePackage = { weight: 500, length: 30, width: 20, height: 40 }
+    const totalWeight = cartItems.reduce(
+      (sum, item) => sum + item.quantity * basePackage.weight,
+      0
+    )
+    return {
+      ...basePackage,
+      weight: totalWeight > 0 ? totalWeight : basePackage.weight
+    }
+  }, [cartItems])
 
   // Fetch address suggestions when debounced address changes
   useEffect(() => {
@@ -76,7 +93,11 @@ export function Cart({
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + parsePrice(item.product.price) * item.quantity
   }, 0)
-  const deliveryCost = deliveryMethod === 'courier' ? 200 : 0
+  const deliveryCost = deliveryMethod === 'courier'
+    ? 200
+    : deliveryMethod === 'cdek'
+      ? (selectedCdekCost?.delivery_sum ?? 0)
+      : 0
   const total = subtotal + deliveryCost
 
   const itemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
@@ -194,7 +215,7 @@ export function Cart({
           <div className="px-[29px] py-2 flex items-start gap-4">
             <div className="flex-1">
               <p className="text-[12px] font-light leading-[1.83] tracking-[-0.007em]">
-                Доставка курьером СДЕК{'\n'}(Без примерки)
+                Доставка курьером СДЭК{'\n'}(Без примерки)
               </p>
             </div>
             <button
@@ -202,6 +223,23 @@ export function Cart({
               className={`w-[17px] h-[17px] rounded-full border-[1.5px] border-black flex items-center justify-center`}
             >
               {deliveryMethod === 'courier' && (
+                <div className="w-[11px] h-[11px] rounded-full bg-black" />
+              )}
+            </button>
+          </div>
+
+          {/* CDEK Option */}
+          <div className="px-[29px] py-2 flex items-start gap-4">
+            <div className="flex-1">
+              <p className="text-[12px] font-light leading-[1.83] tracking-[-0.007em]">
+                Доставка СДЭК{'\n'}(Пункты выдачи)
+              </p>
+            </div>
+            <button
+              onClick={() => setDeliveryMethod('cdek')}
+              className={`w-[17px] h-[17px] rounded-full border-[1.5px] border-black flex items-center justify-center`}
+            >
+              {deliveryMethod === 'cdek' && (
                 <div className="w-[11px] h-[11px] rounded-full bg-black" />
               )}
             </button>
@@ -246,6 +284,43 @@ export function Cart({
               ) : (
                 <p className="text-[13px] font-light tracking-[-0.006em] text-gray-400">
                   Выберите адрес магазина
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* CDEK Pickup Section */}
+        {deliveryMethod === 'cdek' && (
+          <div className="mt-4">
+            <div className="mx-[29px] h-[0.5px] bg-[#C4C4C4]" />
+            <div className="px-[29px] py-3 flex items-center justify-between">
+              <span className="text-[17px] tracking-[-0.014em]">Пункт выдачи СДЭК</span>
+              <button
+                onClick={() => setIsCdekSelectorOpen(true)}
+                className="text-[14px] tracking-[-0.014em] text-black hover:opacity-70"
+              >
+                {selectedCdekPoint ? 'Изменить' : 'Выбрать'}
+              </button>
+            </div>
+            <div className="px-[29px]">
+              {selectedCdekPoint ? (
+                <>
+                  <p className="text-[13px] font-light tracking-[-0.006em]">
+                    {selectedCdekPoint.address_full || selectedCdekPoint.address}
+                  </p>
+                  {selectedCdekCost && (
+                    <p className="text-[12px] font-light tracking-[-0.006em] text-gray-500 mt-1">
+                      Доставка: {selectedCdekCost.delivery_sum} ₽ • {selectedCdekCost.period_min}
+                      {selectedCdekCost.period_min === selectedCdekCost.period_max
+                        ? ' дн.'
+                        : `-${selectedCdekCost.period_max} дн.`}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[13px] font-light tracking-[-0.006em] text-gray-400">
+                  Выберите пункт выдачи
                 </p>
               )}
             </div>
@@ -367,7 +442,7 @@ export function Cart({
               {subtotal.toLocaleString('ru-RU')} ₽
             </span>
           </div>
-          {deliveryMethod === 'courier' && (
+          {(deliveryMethod === 'courier' || deliveryMethod === 'cdek') && (
             <div className="flex justify-between py-1">
               <span className="text-[15px] font-light tracking-[-0.005em]">Доставка</span>
               <span className="text-[15px] font-light tracking-[-0.005em]">
@@ -395,6 +470,19 @@ export function Cart({
           </button>
         </div>
       </div>
+
+      <CDEKDeliverySelector
+        isOpen={isCdekSelectorOpen}
+        onClose={() => setIsCdekSelectorOpen(false)}
+        packageInfo={cdekPackageInfo}
+        selectedPoint={selectedCdekPoint}
+        selectedCost={selectedCdekCost}
+        onSelect={(point, cost) => {
+          setSelectedCdekPoint(point)
+          setSelectedCdekCost(cost)
+          setIsCdekSelectorOpen(false)
+        }}
+      />
     </div>
   )
 }

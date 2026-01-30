@@ -198,5 +198,15 @@ class OrdersPageDTO(BaseModel):
 class AddressSuggestionDTO(BaseModel):
     """Data transfer object for address suggestion from DaData"""
     value: str  # Full formatted address
+
+
+class CDEKCalculateRequest(BaseModel):
+    """Request model for CDEK delivery calculation"""
+    delivery_point_code: str
+    weight: int
+    length: int
+    width: int
+    height: int
+    declared_value: Optional[float] = None
     geo_lat: Optional[str] = None  # Latitude
     geo_lon: Optional[str] = None  # Longitude

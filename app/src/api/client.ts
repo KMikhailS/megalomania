@@ -1,3 +1,5 @@
+import type { BoundingBox, DeliveryCost, DeliveryPoint, DeliveryPointsResponse, CdekCity } from '../types/cdek';
+
 // API base URL - uses relative path to work with Vite proxy
 const API_BASE_URL = '/api';
 
@@ -590,4 +592,115 @@ export async function deleteShopAddress(
     const errorText = await response.text();
     throw new Error(`Failed to delete shop address: ${response.status} ${errorText}`);
   }
+}
+
+/**
+ * Fetch CDEK delivery points for a viewport bbox.
+ */
+export async function fetchCdekDeliveryPoints(
+  bbox: BoundingBox,
+  zoom: number,
+  options?: {
+    type?: 'PVZ' | 'POSTAMAT';
+    allowed_cod?: boolean;
+  },
+  signal?: AbortSignal
+): Promise<DeliveryPointsResponse> {
+  const url = new URL(`${API_BASE_URL}/cdek/delivery-points`, window.location.origin);
+  url.searchParams.set('south', String(bbox.south));
+  url.searchParams.set('west', String(bbox.west));
+  url.searchParams.set('north', String(bbox.north));
+  url.searchParams.set('east', String(bbox.east));
+  url.searchParams.set('zoom', String(zoom));
+
+  if (options?.type) {
+    url.searchParams.set('type', options.type);
+  }
+  if (options?.allowed_cod !== undefined) {
+    url.searchParams.set('allowed_cod', String(options.allowed_cod));
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch CDEK points: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch details for a single CDEK delivery point.
+ */
+export async function fetchCdekDeliveryPointDetail(code: string): Promise<DeliveryPoint> {
+  const response = await fetch(`${API_BASE_URL}/cdek/delivery-points/${code}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch CDEK point detail: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Calculate delivery cost for a selected CDEK point.
+ */
+export async function calculateCdekDelivery(params: {
+  delivery_point_code: string;
+  weight: number;
+  length: number;
+  width: number;
+  height: number;
+  declared_value?: number;
+}): Promise<DeliveryCost> {
+  const response = await fetch(`${API_BASE_URL}/cdek/calculate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to calculate CDEK delivery: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Search CDEK cities for autocomplete.
+ */
+export async function searchCdekCities(query: string): Promise<CdekCity[]> {
+  const url = new URL(`${API_BASE_URL}/cdek/cities`, window.location.origin);
+  url.searchParams.set('query', query);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to search CDEK cities: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.cities ?? [];
 }

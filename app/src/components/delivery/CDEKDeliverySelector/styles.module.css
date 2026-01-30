@@ -1,0 +1,302 @@
+.selectorRoot {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 60;
+  max-width: 402px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.selectorHeader {
+  background: #f8f8f8;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.016em;
+}
+
+.headerSpacer {
+  width: 32px;
+}
+
+.backButton {
+  border: none;
+  background: transparent;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.selectorBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+.citySearch {
+  position: relative;
+}
+
+.cityInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 13px;
+  border: 1px solid #000;
+  outline: none;
+}
+
+.citySuggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #000;
+  border-top: none;
+  z-index: 20;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.citySuggestionItem {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+  cursor: pointer;
+}
+
+.citySuggestionItem:last-child {
+  border-bottom: none;
+}
+
+.citySuggestionItem:hover {
+  background: #f2f2f7;
+}
+
+.mapContainer {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+}
+
+.zoomWarning {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--tg-theme-bg-color, #fff);
+  padding: 20px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 280px;
+  z-index: 100;
+}
+
+.zoomWarningIcon {
+  color: var(--tg-theme-hint-color, #999);
+  margin-bottom: 12px;
+}
+
+.zoomWarningText {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tg-theme-text-color, #000);
+  margin: 0 0 8px;
+}
+
+.zoomWarningHint {
+  font-size: 12px;
+  color: var(--tg-theme-hint-color, #999);
+  margin: 0;
+}
+
+.loadingOverlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--tg-theme-bg-color, #fff);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--tg-theme-hint-color, #ccc);
+  border-top-color: var(--tg-theme-button-color, #007aff);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorMessage {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: #fee;
+  color: #c00;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.errorMessage button {
+  background: #c00;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pointCard {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 16px 16px 0 0;
+  padding: 16px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  z-index: 200;
+  max-height: 60%;
+  overflow-y: auto;
+}
+
+.pointCardClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  border-radius: 50%;
+  font-size: 20px;
+  color: var(--tg-theme-hint-color, #999);
+  cursor: pointer;
+}
+
+.pointCardHeader {
+  margin-bottom: 16px;
+}
+
+.pointType {
+  font-size: 12px;
+  color: var(--tg-theme-hint-color, #999);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pointName {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 4px 0 0;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.pointInfoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.pointInfoIcon {
+  flex-shrink: 0;
+}
+
+.pointFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.featureBadge {
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  border-radius: 6px;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.deliveryCost {
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.costValue {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.costLabel {
+  color: var(--tg-theme-hint-color, #999);
+}
+
+.costAmount {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.costPeriod {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #999);
+  margin-top: 4px;
+}
+
+.selectButton {
+  width: 100%;
+  padding: 14px;
+  background: var(--tg-theme-button-color, #000);
+  color: var(--tg-theme-button-text-color, #fff);
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.selectButton:active {
+  opacity: 0.8;
+}
