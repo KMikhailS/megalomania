@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { DeliveryCost, DeliveryPoint } from '../../../types/cdek';
+import type { CdekCity, DeliveryCost, DeliveryPoint } from '../../../types/cdek';
 import { CitySelector } from './CitySelector';
 import { DeliveryMap } from './DeliveryMap';
 import { DeliveryPointCard } from './DeliveryPointCard';
@@ -28,6 +28,7 @@ export function CDEKDeliverySelector({
 }: CDEKDeliverySelectorProps) {
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [selectedCity, setSelectedCity] = useState<CdekCity | null>(null);
   const [activePoint, setActivePoint] = useState<DeliveryPoint | null>(null);
   const [localCost, setLocalCost] = useState<DeliveryCost | null>(null);
 
@@ -77,14 +78,17 @@ export function CDEKDeliverySelector({
       <div className={styles.selectorBody}>
         <CitySelector
           onSelectCity={(city) => {
+            setSelectedCity(city);
             setCenter([city.latitude, city.longitude]);
             setZoom(12);
+            setActivePoint(null);
           }}
         />
 
         <DeliveryMap
           center={center}
           zoom={zoom}
+          cityCode={selectedCity?.code ?? null}
           selectedPoint={activePoint}
           onSelectPoint={(point) => setActivePoint(point)}
         />

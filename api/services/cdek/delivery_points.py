@@ -1,38 +1,8 @@
-from dataclasses import dataclass
 from typing import List, Optional
 
 from .cache import TTLCache
 from .client import CDEKClient
 from .settings import CDEKSettings
-
-
-@dataclass(frozen=True)
-class BoundingBox:
-    south: float
-    west: float
-    north: float
-    east: float
-
-    def contains(self, lat: float | None, lon: float | None) -> bool:
-        if lat is None or lon is None:
-            return False
-        return self.south <= lat <= self.north and self.west <= lon <= self.east
-
-    def expand(self, percent: float) -> "BoundingBox":
-        lat_delta = (self.north - self.south) * percent
-        lon_delta = (self.east - self.west) * percent
-        return BoundingBox(
-            south=self.south - lat_delta,
-            west=self.west - lon_delta,
-            north=self.north + lat_delta,
-            east=self.east + lon_delta,
-        )
-
-    def to_cache_key(self, precision: int = 2) -> str:
-        return (
-            f"{round(self.south, precision)}_{round(self.west, precision)}_"
-            f"{round(self.north, precision)}_{round(self.east, precision)}"
-        )
 
 
 class CDEKDeliveryPointsService:
@@ -41,23 +11,15 @@ class CDEKDeliveryPointsService:
         self.cache = cache
         self.settings = settings
 
-    async def get_points_by_bbox(
+    async def get_points_by_city(
         self,
-        bbox: BoundingBox,
+        city_code: int,
         point_type: Optional[str] = None,
         allowed_cod: Optional[bool] = None,
     ) -> List[dict]:
-        expanded_bbox = bbox.expand(0.1)
-        cache_key = f"cdek:points:bbox:{expanded_bbox.to_cache_key()}"
-
-        cached = await self.cache.get(cache_key)
-        if cached is None:
-            points = await self._fetch_points_for_bbox(expanded_bbox)
-            await self.cache.set(cache_key, points, ttl=self.settings.points_cache_ttl)
-        else:
-            points = cached
-
-        return self._filter_points(points, bbox, point_type, allowed_cod)
+        """Get delivery points for a specific city."""
+        points = await self._fetch_points_by_city(city_code)
+        return self._filter_points_by_type(points, point_type, allowed_cod)
 
     async def get_point_by_code(self, code: str) -> Optional[dict]:
         cache_key = f"cdek:points:code:{code}"
@@ -78,117 +40,80 @@ class CDEKDeliveryPointsService:
         return point
 
     async def search_cities(self, query: str, limit: int = 10) -> List[dict]:
-        cities = await self._get_cities_index()
+        """Search cities from CDEK API with pagination limit."""
         needle = query.strip().lower()
         if not needle:
             return []
 
-        matches = [
-            city for city in cities
-            if needle in city["name"].lower()
-        ]
-        return matches[:limit]
+        # Use CDEK API search directly for better performance
+        try:
+            raw = await self.client.get(
+                "/location/cities",
+                params={
+                    "country_codes": "RU",
+                    "city": query,
+                    "size": min(limit, 50),
+                },
+            )
+            if not isinstance(raw, list):
+                return []
 
-    async def _fetch_points_for_bbox(self, bbox: BoundingBox) -> List[dict]:
-        city_codes = await self._get_cities_in_bbox(bbox)
-        if not city_codes:
+            return [
+                {
+                    "code": city.get("code"),
+                    "name": city.get("city") or city.get("name") or "",
+                    "region": city.get("region") or "",
+                    "latitude": city.get("latitude"),
+                    "longitude": city.get("longitude"),
+                }
+                for city in raw
+                if city.get("code")
+            ][:limit]
+        except Exception:
             return []
 
-        all_points: list[dict] = []
-        for city_code in city_codes:
-            points = await self._fetch_points_by_city(city_code)
-            all_points.extend(points)
-
-        unique_points: dict[str, dict] = {}
-        for point in all_points:
-            code = point.get("code")
-            if code and code not in unique_points:
-                unique_points[code] = point
-
-        return [
-            p for p in unique_points.values()
-            if bbox.contains(
-                p["coordinates"]["latitude"],
-                p["coordinates"]["longitude"],
-            )
-        ]
-
     async def _fetch_points_by_city(self, city_code: int) -> List[dict]:
+        """Fetch all delivery points for a specific city (cached)."""
         cache_key = f"cdek:points:city:{city_code}"
         cached = await self.cache.get(cache_key)
         if cached:
             return cached
 
-        points = await self.client.get("/deliverypoints", params={"city_code": city_code})
-        transformed = [self._transform_point(p) for p in points]
-        transformed = [
-            p for p in transformed
-            if p["coordinates"]["latitude"] is not None
-            and p["coordinates"]["longitude"] is not None
-        ]
-
-        await self.cache.set(cache_key, transformed, ttl=self.settings.points_cache_ttl)
-        return transformed
-
-    async def _get_cities_in_bbox(self, bbox: BoundingBox) -> List[int]:
-        cities = await self._get_cities_index()
-        return [
-            city["code"]
-            for city in cities
-            if bbox.contains(city.get("latitude"), city.get("longitude"))
-        ]
-
-    async def _get_cities_index(self) -> List[dict]:
-        cache_key = "cdek:cities:index"
-        cached = await self.cache.get(cache_key)
-        if cached:
-            return cached
-
-        cities: list[dict] = []
-        seen_codes: set[int] = set()
+        points: list[dict] = []
         page = 0
-        size = self.settings.max_points_per_request
+        size = 500
 
-        while True:
-            raw = await self.client.get(
-                "/location/cities",
-                params={
-                    "country_codes": "RU",
-                    "page": page,
-                    "size": size,
-                },
-            )
-
-            if not isinstance(raw, list) or not raw:
-                break
-
-            for city in raw:
-                latitude = city.get("latitude")
-                longitude = city.get("longitude")
-                code = city.get("code")
-                if latitude is None or longitude is None or code is None:
-                    continue
-                if code in seen_codes:
-                    continue
-                seen_codes.add(code)
-                cities.append(
-                    {
-                        "code": code,
-                        "name": city.get("city") or city.get("name") or "",
-                        "region": city.get("region") or "",
-                        "latitude": latitude,
-                        "longitude": longitude,
-                    }
+        while page < 20:  # Max 20 pages per city
+            try:
+                raw = await self.client.get(
+                    "/deliverypoints",
+                    params={
+                        "city_code": city_code,
+                        "page": page,
+                        "size": size,
+                    },
                 )
 
-            if len(raw) < size:
-                break
-            page += 1
-            if page > 200:
+                if not isinstance(raw, list) or not raw:
+                    break
+
+                for point in raw:
+                    transformed = self._transform_point(point)
+                    if (
+                        transformed["coordinates"]["latitude"] is not None
+                        and transformed["coordinates"]["longitude"] is not None
+                    ):
+                        points.append(transformed)
+
+                if len(raw) < size:
+                    break
+                page += 1
+
+            except Exception:
                 break
 
-        await self.cache.set(cache_key, cities, ttl=self.settings.cities_cache_ttl)
-        return cities
+        await self.cache.set(cache_key, points, ttl=self.settings.points_cache_ttl)
+        return points
 
     def _transform_point(self, raw: dict) -> dict:
         location = raw.get("location", {})
@@ -221,25 +146,22 @@ class CDEKDeliveryPointsService:
             "dimensions": raw.get("dimensions"),
         }
 
-    def _filter_points(
+    def _filter_points_by_type(
         self,
         points: List[dict],
-        bbox: BoundingBox,
         point_type: Optional[str],
         allowed_cod: Optional[bool],
     ) -> List[dict]:
+        """Filter points by type and allowed_cod."""
+        if point_type is None and allowed_cod is None:
+            return points
+
         result = []
         for point in points:
-            coords = point.get("coordinates", {})
-            if not bbox.contains(coords.get("latitude"), coords.get("longitude")):
-                continue
-
             if point_type and point.get("type") != point_type:
                 continue
-
             if allowed_cod is not None and point.get("allowed_cod") != allowed_cod:
                 continue
-
             result.append(point)
 
         return result

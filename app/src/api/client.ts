@@ -1,4 +1,4 @@
-import type { BoundingBox, DeliveryCost, DeliveryPoint, DeliveryPointsResponse, CdekCity } from '../types/cdek';
+import type { DeliveryCost, DeliveryPoint, DeliveryPointsResponse, CdekCity } from '../types/cdek';
 
 // API base URL - uses relative path to work with Vite proxy
 const API_BASE_URL = '/api';
@@ -595,11 +595,10 @@ export async function deleteShopAddress(
 }
 
 /**
- * Fetch CDEK delivery points for a viewport bbox.
+ * Fetch CDEK delivery points for a city.
  */
 export async function fetchCdekDeliveryPoints(
-  bbox: BoundingBox,
-  zoom: number,
+  cityCode: number,
   options?: {
     type?: 'PVZ' | 'POSTAMAT';
     allowed_cod?: boolean;
@@ -607,11 +606,7 @@ export async function fetchCdekDeliveryPoints(
   signal?: AbortSignal
 ): Promise<DeliveryPointsResponse> {
   const url = new URL(`${API_BASE_URL}/cdek/delivery-points`, window.location.origin);
-  url.searchParams.set('south', String(bbox.south));
-  url.searchParams.set('west', String(bbox.west));
-  url.searchParams.set('north', String(bbox.north));
-  url.searchParams.set('east', String(bbox.east));
-  url.searchParams.set('zoom', String(zoom));
+  url.searchParams.set('city_code', String(cityCode));
 
   if (options?.type) {
     url.searchParams.set('type', options.type);

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Clusterer, Map, Placemark, YMaps, ZoomControl } from '@pbe/react-yandex-maps';
 import { useDeliveryPoints } from './hooks/useDeliveryPoints';
-import { ZoomWarning } from './ZoomWarning';
-import type { BoundingBox, DeliveryPoint } from '../../../types/cdek';
+import type { DeliveryPoint } from '../../../types/cdek';
 import styles from './styles.module.css';
 
 interface DeliveryMapProps {
   center: [number, number];
   zoom: number;
+  cityCode: number | null;
   onSelectPoint: (point: DeliveryPoint) => void;
   selectedPoint: DeliveryPoint | null;
 }
@@ -19,55 +19,36 @@ const MAP_CONSTANTS = {
 export function DeliveryMap({
   center,
   zoom,
+  cityCode,
   onSelectPoint,
   selectedPoint,
 }: DeliveryMapProps) {
   const mapRef = useRef<any>(null);
   const [currentZoom, setCurrentZoom] = useState(zoom);
-  const { points, isLoading, error, warning, loadPoints } = useDeliveryPoints();
+  const { points, isLoading, error, loadPointsByCity, clearPoints } = useDeliveryPoints();
 
-  const handleBoundsChange = useCallback(
-    (event: any) => {
-      const map = event.get('target');
-      const bounds = map.getBounds();
-      const nextZoom = map.getZoom();
+  // Load points when city changes
+  useEffect(() => {
+    if (cityCode) {
+      loadPointsByCity(cityCode);
+    } else {
+      clearPoints();
+    }
+  }, [cityCode, loadPointsByCity, clearPoints]);
 
-      if (!bounds) return;
-
-      setCurrentZoom(nextZoom);
-
-      const bbox: BoundingBox = {
-        south: bounds[0][0],
-        west: bounds[0][1],
-        north: bounds[1][0],
-        east: bounds[1][1],
-      };
-
-      loadPoints(bbox, nextZoom);
-    },
-    [loadPoints]
-  );
+  const handleBoundsChange = useCallback((event: any) => {
+    const map = event.get('target');
+    const nextZoom = map.getZoom();
+    setCurrentZoom(nextZoom);
+  }, []);
 
   const handleMapLoad = useCallback(
     (map: any) => {
       if (!map) return;
       mapRef.current = map;
-
-      const bounds = map.getBounds();
-      const initialZoom = map.getZoom();
-      if (bounds) {
-        const bbox: BoundingBox = {
-          south: bounds[0][0],
-          west: bounds[0][1],
-          north: bounds[1][0],
-          east: bounds[1][1],
-        };
-        loadPoints(bbox, initialZoom);
-      }
-
       map.events.add('boundschange', handleBoundsChange);
     },
-    [loadPoints, handleBoundsChange]
+    [handleBoundsChange]
   );
 
   useEffect(() => {
@@ -121,7 +102,7 @@ export function DeliveryMap({
         >
           <ZoomControl options={{ position: { right: 12, top: 12 } }} />
 
-          {!warning && points.length > 0 && (
+          {points.length > 0 && (
             useCluster ? (
               <Clusterer
                 options={{
@@ -166,8 +147,6 @@ export function DeliveryMap({
           )}
         </Map>
       </YMaps>
-
-      {warning && <ZoomWarning message={warning.message} />}
 
       {isLoading && (
         <div className={styles.loadingOverlay}>

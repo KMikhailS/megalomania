@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from models import CDEKCalculateRequest
 from services.cdek import (
-    BoundingBox,
     CDEKAuthService,
     CDEKCalculatorService,
     CDEKClient,
@@ -78,43 +77,15 @@ def get_cdek_calculator_service() -> CDEKCalculatorService:
 
 @router.get("/delivery-points")
 async def get_delivery_points(
-    south: float = Query(..., description="Южная граница (min lat)"),
-    west: float = Query(..., description="Западная граница (min lon)"),
-    north: float = Query(..., description="Северная граница (max lat)"),
-    east: float = Query(..., description="Восточная граница (max lon)"),
+    city_code: int = Query(..., description="Код города СДЭК"),
     point_type: Optional[str] = Query(None, alias="type", description="Тип: PVZ или POSTAMAT"),
     allowed_cod: Optional[bool] = Query(None, description="Наложенный платеж"),
-    zoom: Optional[int] = Query(None, description="Текущий zoom карты"),
     service: CDEKDeliveryPointsService = Depends(get_cdek_points_service),
 ):
-    min_zoom = 11
-    if zoom is not None and zoom < min_zoom:
-        return {
-            "points": [],
-            "total": 0,
-            "warning": {
-                "code": "ZOOM_TOO_LOW",
-                "message": "Приблизьте карту для отображения пунктов выдачи",
-                "min_zoom": min_zoom,
-            },
-        }
-
-    bbox = BoundingBox(south=south, west=west, north=north, east=east)
-    bbox_area = abs(north - south) * abs(east - west)
-    max_bbox_area = 4.0
-    if bbox_area > max_bbox_area:
-        return {
-            "points": [],
-            "total": 0,
-            "warning": {
-                "code": "AREA_TOO_LARGE",
-                "message": "Область слишком большая. Приблизьте карту.",
-            },
-        }
-
+    """Get delivery points for a specific city."""
     try:
-        points = await service.get_points_by_bbox(
-            bbox=bbox,
+        points = await service.get_points_by_city(
+            city_code=city_code,
             point_type=point_type,
             allowed_cod=allowed_cod,
         )
@@ -128,12 +99,6 @@ async def get_delivery_points(
     return {
         "points": points,
         "total": len(points),
-        "bbox": {
-            "south": south,
-            "west": west,
-            "north": north,
-            "east": east,
-        },
     }
 
 
