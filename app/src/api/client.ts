@@ -595,10 +595,10 @@ export async function deleteShopAddress(
 }
 
 /**
- * Fetch CDEK delivery points for a city.
+ * Fetch CDEK delivery points by city code or coordinates.
  */
 export async function fetchCdekDeliveryPoints(
-  cityCode: number,
+  params: { cityCode: number } | { lat: number; lon: number },
   options?: {
     type?: 'PVZ' | 'POSTAMAT';
     allowed_cod?: boolean;
@@ -606,7 +606,13 @@ export async function fetchCdekDeliveryPoints(
   signal?: AbortSignal
 ): Promise<DeliveryPointsResponse> {
   const url = new URL(`${API_BASE_URL}/cdek/delivery-points`, window.location.origin);
-  url.searchParams.set('city_code', String(cityCode));
+
+  if ('cityCode' in params) {
+    url.searchParams.set('city_code', String(params.cityCode));
+  } else {
+    url.searchParams.set('lat', String(params.lat));
+    url.searchParams.set('lon', String(params.lon));
+  }
 
   if (options?.type) {
     url.searchParams.set('type', options.type);

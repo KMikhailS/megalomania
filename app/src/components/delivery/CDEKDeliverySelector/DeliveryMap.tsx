@@ -25,22 +25,26 @@ export function DeliveryMap({
 }: DeliveryMapProps) {
   const mapRef = useRef<any>(null);
   const [currentZoom, setCurrentZoom] = useState(zoom);
-  const { points, isLoading, error, loadPointsByCity, clearPoints } = useDeliveryPoints();
+  const { points, isLoading, error, loadPointsByCity, loadPointsByCoordinates } = useDeliveryPoints();
 
-  // Load points when city changes
+  // Load points when city is explicitly selected
   useEffect(() => {
     if (cityCode) {
       loadPointsByCity(cityCode);
-    } else {
-      clearPoints();
     }
-  }, [cityCode, loadPointsByCity, clearPoints]);
+  }, [cityCode, loadPointsByCity]);
 
   const handleBoundsChange = useCallback((event: any) => {
     const map = event.get('target');
     const nextZoom = map.getZoom();
     setCurrentZoom(nextZoom);
-  }, []);
+
+    // Load points based on map center when user pans the map
+    if (nextZoom >= 10) {
+      const mapCenter = map.getCenter();
+      loadPointsByCoordinates(mapCenter[0], mapCenter[1]);
+    }
+  }, [loadPointsByCoordinates]);
 
   const handleMapLoad = useCallback(
     (map: any) => {

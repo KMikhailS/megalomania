@@ -24,6 +24,75 @@ class CDEKDeliveryPointsService:
         points = await self._fetch_points_by_city(city_code)
         return self._filter_points_by_type(points, point_type, allowed_cod)
 
+    async def get_points_by_coordinates(
+        self,
+        lat: float,
+        lon: float,
+        point_type: Optional[str] = None,
+        allowed_cod: Optional[bool] = None,
+    ) -> List[dict]:
+        """Get delivery points by finding the nearest city to coordinates."""
+        city = await self._find_city_by_coordinates(lat, lon)
+        if not city:
+            logger.warning(f"No city found for coordinates lat={lat}, lon={lon}")
+            return []
+
+        logger.info(f"Found city {city['name']} (code={city['code']}) for coordinates lat={lat}, lon={lon}")
+        points = await self._fetch_points_by_city(city["code"])
+        return self._filter_points_by_type(points, point_type, allowed_cod)
+
+    async def _find_city_by_coordinates(self, lat: float, lon: float) -> Optional[dict]:
+        """Find the nearest CDEK city by coordinates."""
+        # Round coordinates to reduce cache keys
+        cache_key = f"cdek:city:coords:{round(lat, 2)}:{round(lon, 2)}"
+        cached = await self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        try:
+            # Get cities and find the nearest one
+            raw = await self.client.get(
+                "/location/cities",
+                params={
+                    "country_codes": "RU",
+                    "size": 1000,
+                },
+            )
+
+            if not isinstance(raw, list) or not raw:
+                return None
+
+            # Find nearest city by distance
+            nearest_city = None
+            min_distance = float("inf")
+
+            for city in raw:
+                city_lat = city.get("latitude")
+                city_lon = city.get("longitude")
+                if city_lat is None or city_lon is None:
+                    continue
+
+                # Simple distance calculation (good enough for finding nearest)
+                dist = ((lat - city_lat) ** 2 + (lon - city_lon) ** 2) ** 0.5
+                if dist < min_distance:
+                    min_distance = dist
+                    nearest_city = {
+                        "code": city.get("code"),
+                        "name": city.get("city") or city.get("name") or "",
+                        "region": city.get("region") or "",
+                        "latitude": city_lat,
+                        "longitude": city_lon,
+                    }
+
+            if nearest_city:
+                await self.cache.set(cache_key, nearest_city, ttl=self.settings.cities_cache_ttl)
+
+            return nearest_city
+
+        except Exception as e:
+            logger.error(f"Error finding city by coordinates: {e}")
+            return None
+
     async def get_point_by_code(self, code: str) -> Optional[dict]:
         cache_key = f"cdek:points:code:{code}"
         cached = await self.cache.get(cache_key)

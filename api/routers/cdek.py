@@ -77,18 +77,35 @@ def get_cdek_calculator_service() -> CDEKCalculatorService:
 
 @router.get("/delivery-points")
 async def get_delivery_points(
-    city_code: int = Query(..., description="Код города СДЭК"),
+    city_code: Optional[int] = Query(None, description="Код города СДЭК"),
+    lat: Optional[float] = Query(None, description="Широта центра карты"),
+    lon: Optional[float] = Query(None, description="Долгота центра карты"),
     point_type: Optional[str] = Query(None, alias="type", description="Тип: PVZ или POSTAMAT"),
     allowed_cod: Optional[bool] = Query(None, description="Наложенный платеж"),
     service: CDEKDeliveryPointsService = Depends(get_cdek_points_service),
 ):
-    """Get delivery points for a specific city."""
+    """Get delivery points for a specific city or by coordinates."""
     try:
-        points = await service.get_points_by_city(
-            city_code=city_code,
-            point_type=point_type,
-            allowed_cod=allowed_cod,
-        )
+        if city_code:
+            points = await service.get_points_by_city(
+                city_code=city_code,
+                point_type=point_type,
+                allowed_cod=allowed_cod,
+            )
+        elif lat is not None and lon is not None:
+            points = await service.get_points_by_coordinates(
+                lat=lat,
+                lon=lon,
+                point_type=point_type,
+                allowed_cod=allowed_cod,
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either city_code or lat/lon coordinates are required",
+            )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Failed to load delivery points: %s", exc)
         raise HTTPException(
