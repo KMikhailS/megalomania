@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pathlib import Path
 from fastapi import FastAPI, Request
@@ -13,8 +15,31 @@ load_dotenv()
 
 APP_URL = os.getenv("APP_URL")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Управление жизненным циклом приложения."""
+    # Startup: прогрев кэша городов СДЭК в фоне
+    async def warm_up_cdek_cache():
+        try:
+            # Даём приложению время на полную инициализацию
+            await asyncio.sleep(2)
+            service = cdek.get_cdek_points_service()
+            await service.warm_up_cities_cache()
+        except Exception as exc:
+            logger.warning("CDEK cache warm-up skipped: %s", exc)
+
+    asyncio.create_task(warm_up_cdek_cache())
+    logger.info("Application startup complete")
+
+    yield
+
+    # Shutdown
+    logger.info("Application shutdown")
+
+
 # Create FastAPI app
-app = FastAPI(title="FanFanTulpan API", version="1.0.0")
+app = FastAPI(title="FanFanTulpan API", version="1.0.0", lifespan=lifespan)
 
 # Middleware for logging all requests
 @app.middleware("http")

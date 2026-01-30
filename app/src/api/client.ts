@@ -1,4 +1,4 @@
-import type { DeliveryCost, DeliveryPoint, DeliveryPointsResponse, CdekCity } from '../types/cdek';
+import type { BoundingBox, DeliveryCost, DeliveryPoint, DeliveryPointsResponse, CdekCity } from '../types/cdek';
 
 // API base URL - uses relative path to work with Vite proxy
 const API_BASE_URL = '/api';
@@ -595,10 +595,11 @@ export async function deleteShopAddress(
 }
 
 /**
- * Fetch CDEK delivery points by city code or coordinates.
+ * Fetch CDEK delivery points for a viewport bbox.
  */
 export async function fetchCdekDeliveryPoints(
-  params: { cityCode: number } | { lat: number; lon: number },
+  bbox: BoundingBox,
+  zoom: number,
   options?: {
     type?: 'PVZ' | 'POSTAMAT';
     allowed_cod?: boolean;
@@ -606,13 +607,11 @@ export async function fetchCdekDeliveryPoints(
   signal?: AbortSignal
 ): Promise<DeliveryPointsResponse> {
   const url = new URL(`${API_BASE_URL}/cdek/delivery-points`, window.location.origin);
-
-  if ('cityCode' in params) {
-    url.searchParams.set('city_code', String(params.cityCode));
-  } else {
-    url.searchParams.set('lat', String(params.lat));
-    url.searchParams.set('lon', String(params.lon));
-  }
+  url.searchParams.set('south', String(bbox.south));
+  url.searchParams.set('west', String(bbox.west));
+  url.searchParams.set('north', String(bbox.north));
+  url.searchParams.set('east', String(bbox.east));
+  url.searchParams.set('zoom', String(zoom));
 
   if (options?.type) {
     url.searchParams.set('type', options.type);
@@ -704,4 +703,33 @@ export async function searchCdekCities(query: string): Promise<CdekCity[]> {
 
   const data = await response.json();
   return data.cities ?? [];
+}
+
+/**
+ * User city response from IP geolocation.
+ */
+export interface UserCityResponse {
+  city_code: number | null;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Get user's city based on IP geolocation.
+ */
+export async function fetchUserCity(): Promise<UserCityResponse> {
+  const response = await fetch(`${API_BASE_URL}/cdek/user-city`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch user city: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
 }

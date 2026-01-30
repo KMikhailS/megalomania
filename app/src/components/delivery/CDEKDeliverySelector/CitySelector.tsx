@@ -6,11 +6,10 @@ import styles from './styles.module.css';
 
 interface CitySelectorProps {
   onSelectCity: (city: CdekCity) => void;
-  initialCity?: CdekCity | null;
 }
 
-export function CitySelector({ onSelectCity, initialCity }: CitySelectorProps) {
-  const [query, setQuery] = useState(initialCity?.name ?? '');
+export function CitySelector({ onSelectCity }: CitySelectorProps) {
+  const [query, setQuery] = useState('');
   const [cities, setCities] = useState<CdekCity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 

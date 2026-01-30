@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { CdekCity, DeliveryCost, DeliveryPoint } from '../../../types/cdek';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchUserCity, type UserCityResponse } from '../../../api/client';
+import type { DeliveryCost, DeliveryPoint } from '../../../types/cdek';
 import { CitySelector } from './CitySelector';
 import { DeliveryMap } from './DeliveryMap';
 import { DeliveryPointCard } from './DeliveryPointCard';
@@ -15,15 +16,29 @@ interface CDEKDeliverySelectorProps {
   onSelect: (point: DeliveryPoint, cost: DeliveryCost | null) => void;
 }
 
-// Default city: Moscow
-const DEFAULT_CITY: CdekCity = {
-  code: 44,
-  name: 'Москва',
-  region: '',
-  latitude: 55.7558,
-  longitude: 37.6173,
-};
+const DEFAULT_CENTER: [number, number] = [55.7558, 37.6173]; // Москва
 const DEFAULT_ZOOM = 11;
+const STORAGE_KEY = 'cdek_user_city';
+
+function loadSavedCity(): UserCityResponse | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveCity(city: UserCityResponse): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(city));
+  } catch {
+    // ignore
+  }
+}
 
 export function CDEKDeliverySelector({
   isOpen,
@@ -33,18 +48,60 @@ export function CDEKDeliverySelector({
   selectedCost,
   onSelect,
 }: CDEKDeliverySelectorProps) {
-  const [center, setCenter] = useState<[number, number]>([DEFAULT_CITY.latitude, DEFAULT_CITY.longitude]);
+  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [selectedCity, setSelectedCity] = useState<CdekCity | null>(DEFAULT_CITY);
   const [activePoint, setActivePoint] = useState<DeliveryPoint | null>(null);
   const [localCost, setLocalCost] = useState<DeliveryCost | null>(null);
+  const [isLoadingCity, setIsLoadingCity] = useState(false);
+  const cityLoadedRef = useRef(false);
+
+  // Определение города пользователя при первом открытии
+  const initializeUserCity = useCallback(async () => {
+    if (cityLoadedRef.current) return;
+    cityLoadedRef.current = true;
+
+    // Сначала проверяем localStorage
+    const savedCity = loadSavedCity();
+    if (savedCity) {
+      setCenter([savedCity.latitude, savedCity.longitude]);
+      setZoom(12);
+      return;
+    }
+
+    // Если нет сохранённого города, запрашиваем по IP
+    setIsLoadingCity(true);
+    try {
+      const city = await fetchUserCity();
+      setCenter([city.latitude, city.longitude]);
+      setZoom(12);
+      saveCity(city);
+    } catch (error) {
+      console.error('Failed to fetch user city:', error);
+      // Оставляем Москву по умолчанию
+    } finally {
+      setIsLoadingCity(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       setActivePoint(selectedPoint ?? null);
       setLocalCost(selectedCost ?? null);
+      initializeUserCity();
     }
-  }, [isOpen, selectedPoint, selectedCost]);
+  }, [isOpen, selectedPoint, selectedCost, initializeUserCity]);
+
+  const handleSelectCity = useCallback((city: { latitude: number; longitude: number; code: number; name: string }) => {
+    setCenter([city.latitude, city.longitude]);
+    setZoom(12);
+    // Сохраняем выбранный город
+    saveCity({
+      city_code: city.code,
+      name: city.name,
+      latitude: city.latitude,
+      longitude: city.longitude,
+    });
+  }, []);
 
   useEffect(() => {
     if (!activePoint) {
@@ -83,20 +140,18 @@ export function CDEKDeliverySelector({
       </div>
 
       <div className={styles.selectorBody}>
-        <CitySelector
-          initialCity={DEFAULT_CITY}
-          onSelectCity={(city) => {
-            setSelectedCity(city);
-            setCenter([city.latitude, city.longitude]);
-            setZoom(12);
-            setActivePoint(null);
-          }}
-        />
+        <CitySelector onSelectCity={handleSelectCity} />
+
+        {isLoadingCity && (
+          <div className={styles.loadingOverlay}>
+            <div className={styles.spinner} />
+            Определяем ваш город...
+          </div>
+        )}
 
         <DeliveryMap
           center={center}
           zoom={zoom}
-          cityCode={selectedCity?.code ?? null}
           selectedPoint={activePoint}
           onSelectPoint={(point) => setActivePoint(point)}
         />

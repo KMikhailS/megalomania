@@ -35,9 +35,22 @@ export interface DeliveryPoint {
   };
 }
 
+export interface BoundingBox {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
 export interface DeliveryPointsResponse {
   points: DeliveryPoint[];
   total: number;
+  bbox?: BoundingBox;
+  warning?: {
+    code: 'ZOOM_TOO_LOW' | 'AREA_TOO_LARGE';
+    message: string;
+    min_zoom?: number;
+  };
 }
 
 export interface DeliveryCost {
@@ -48,6 +61,12 @@ export interface DeliveryCost {
   currency: string;
   tariff_code: number;
   tariff_name?: string;
+}
+
+export interface ViewportCacheEntry {
+  points: DeliveryPoint[];
+  timestamp: number;
+  bbox: BoundingBox;
 }
 
 export interface CdekCity {
