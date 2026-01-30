@@ -48,11 +48,11 @@ export function CDEKDeliverySelector({
   selectedCost,
   onSelect,
 }: CDEKDeliverySelectorProps) {
-  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [center, setCenter] = useState<[number, number] | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [activePoint, setActivePoint] = useState<DeliveryPoint | null>(null);
   const [localCost, setLocalCost] = useState<DeliveryCost | null>(null);
-  const [isLoadingCity, setIsLoadingCity] = useState(false);
+  const [isLoadingCity, setIsLoadingCity] = useState(true);
   const cityLoadedRef = useRef(false);
 
   // Определение города пользователя при первом открытии
@@ -65,6 +65,7 @@ export function CDEKDeliverySelector({
     if (savedCity) {
       setCenter([savedCity.latitude, savedCity.longitude]);
       setZoom(12);
+      setIsLoadingCity(false);
       return;
     }
 
@@ -77,7 +78,8 @@ export function CDEKDeliverySelector({
       saveCity(city);
     } catch (error) {
       console.error('Failed to fetch user city:', error);
-      // Оставляем Москву по умолчанию
+      // Используем Москву по умолчанию
+      setCenter(DEFAULT_CENTER);
     } finally {
       setIsLoadingCity(false);
     }
@@ -142,19 +144,21 @@ export function CDEKDeliverySelector({
       <div className={styles.selectorBody}>
         <CitySelector onSelectCity={handleSelectCity} />
 
-        {isLoadingCity && (
-          <div className={styles.loadingOverlay}>
-            <div className={styles.spinner} />
-            Определяем ваш город...
+        {isLoadingCity || !center ? (
+          <div className={styles.mapContainer}>
+            <div className={styles.loadingOverlay} style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className={styles.spinner} />
+              Определяем ваш город...
+            </div>
           </div>
+        ) : (
+          <DeliveryMap
+            center={center}
+            zoom={zoom}
+            selectedPoint={activePoint}
+            onSelectPoint={(point) => setActivePoint(point)}
+          />
         )}
-
-        <DeliveryMap
-          center={center}
-          zoom={zoom}
-          selectedPoint={activePoint}
-          onSelectPoint={(point) => setActivePoint(point)}
-        />
       </div>
 
       {activePoint && (

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import math
 from dataclasses import dataclass
@@ -8,6 +9,10 @@ from .client import CDEKClient
 from .settings import CDEKSettings
 
 logger = logging.getLogger(__name__)
+
+# Глобальная блокировка для загрузки индекса городов
+_cities_index_lock = asyncio.Lock()
+_cities_loading = False
 
 
 @dataclass(frozen=True)
@@ -198,55 +203,67 @@ class CDEKDeliveryPointsService:
 
     async def _get_cities_index(self) -> List[dict]:
         cache_key = "cdek:cities:index"
+
+        # Проверяем кэш до блокировки
         cached = await self.cache.get(cache_key)
         if cached:
             return cached
 
-        cities: list[dict] = []
-        seen_codes: set[int] = set()
-        page = 0
-        size = self.settings.max_points_per_request
+        # Блокировка для предотвращения параллельной загрузки
+        global _cities_index_lock
+        async with _cities_index_lock:
+            # Повторная проверка кэша после получения блокировки
+            cached = await self.cache.get(cache_key)
+            if cached:
+                return cached
 
-        while True:
-            raw = await self.client.get(
-                "/location/cities",
-                params={
-                    "country_codes": "RU",
-                    "page": page,
-                    "size": size,
-                },
-            )
+            logger.info("Loading CDEK cities index...")
+            cities: list[dict] = []
+            seen_codes: set[int] = set()
+            page = 0
+            size = self.settings.max_points_per_request
 
-            if not isinstance(raw, list) or not raw:
-                break
-
-            for city in raw:
-                latitude = city.get("latitude")
-                longitude = city.get("longitude")
-                code = city.get("code")
-                if latitude is None or longitude is None or code is None:
-                    continue
-                if code in seen_codes:
-                    continue
-                seen_codes.add(code)
-                cities.append(
-                    {
-                        "code": code,
-                        "name": city.get("city") or city.get("name") or "",
-                        "region": city.get("region") or "",
-                        "latitude": latitude,
-                        "longitude": longitude,
-                    }
+            while True:
+                raw = await self.client.get(
+                    "/location/cities",
+                    params={
+                        "country_codes": "RU",
+                        "page": page,
+                        "size": size,
+                    },
                 )
 
-            if len(raw) < size:
-                break
-            page += 1
-            if page > 200:
-                break
+                if not isinstance(raw, list) or not raw:
+                    break
 
-        await self.cache.set(cache_key, cities, ttl=self.settings.cities_cache_ttl)
-        return cities
+                for city in raw:
+                    latitude = city.get("latitude")
+                    longitude = city.get("longitude")
+                    code = city.get("code")
+                    if latitude is None or longitude is None or code is None:
+                        continue
+                    if code in seen_codes:
+                        continue
+                    seen_codes.add(code)
+                    cities.append(
+                        {
+                            "code": code,
+                            "name": city.get("city") or city.get("name") or "",
+                            "region": city.get("region") or "",
+                            "latitude": latitude,
+                            "longitude": longitude,
+                        }
+                    )
+
+                if len(raw) < size:
+                    break
+                page += 1
+                if page > 200:
+                    break
+
+            logger.info("CDEK cities index loaded: %d cities", len(cities))
+            await self.cache.set(cache_key, cities, ttl=self.settings.cities_cache_ttl)
+            return cities
 
     def _transform_point(self, raw: dict) -> dict:
         location = raw.get("location", {})
