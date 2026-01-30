@@ -142,6 +142,7 @@ export function Cart({
         from: 'Москва',
         root: 'cdek-widget-container',
         apiKey: '3878f4b1-b0c2-4623-8ddse-9781243e39f0',
+        servicePath: '/api/cdek/service.php',
         defaultLocation: 'Москва',
         lang: 'rus',
         currency: 'RUB',
