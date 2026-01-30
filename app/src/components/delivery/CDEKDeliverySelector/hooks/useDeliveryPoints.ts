@@ -32,15 +32,18 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
 
   const loadPoints = useCallback(
     (bbox: BoundingBox, zoom: number) => {
+      // Отменяем предыдущий debounce таймер
       if (debounceTimerRef.current) {
         window.clearTimeout(debounceTimerRef.current);
       }
 
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
+      // Проверка zoom до debounce
       if (zoom < MIN_ZOOM_FOR_POINTS) {
+        // Отменяем текущий запрос если есть
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
         setPoints([]);
         setWarning({
           code: 'ZOOM_TOO_LOW',
@@ -55,11 +58,17 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
       setWarning(null);
 
       debounceTimerRef.current = window.setTimeout(async () => {
+        // Проверяем кэш
         const cached = getFromCache(bbox);
         if (cached) {
           setPoints(cached);
           setIsLoading(false);
           return;
+        }
+
+        // Отменяем предыдущий запрос только перед началом нового
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
         }
 
         setIsLoading(true);
@@ -86,6 +95,7 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
           if (errorName !== 'AbortError') {
             setError('Не удалось загрузить пункты выдачи');
           }
+          // При AbortError не трогаем points - оставляем предыдущие
         } finally {
           setIsLoading(false);
         }

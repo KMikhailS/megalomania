@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Clusterer, Map, Placemark, YMaps, ZoomControl } from '@pbe/react-yandex-maps';
+import { useCallback, useEffect, useRef } from 'react';
+import { Map, Placemark, YMaps, ZoomControl } from '@pbe/react-yandex-maps';
 import { useDeliveryPoints } from './hooks/useDeliveryPoints';
 import { ZoomWarning } from './ZoomWarning';
 import type { BoundingBox, DeliveryPoint } from '../../../types/cdek';
@@ -12,9 +12,6 @@ interface DeliveryMapProps {
   selectedPoint: DeliveryPoint | null;
 }
 
-const MAP_CONSTANTS = {
-  CLUSTER_THRESHOLD_ZOOM: 14,
-};
 
 export function DeliveryMap({
   center,
@@ -23,7 +20,6 @@ export function DeliveryMap({
   selectedPoint,
 }: DeliveryMapProps) {
   const mapRef = useRef<any>(null);
-  const [currentZoom, setCurrentZoom] = useState(zoom);
   const { points, isLoading, error, warning, loadPoints } = useDeliveryPoints();
 
   const handleBoundsChange = useCallback(
@@ -33,8 +29,6 @@ export function DeliveryMap({
       const nextZoom = map.getZoom();
 
       if (!bounds) return;
-
-      setCurrentZoom(nextZoom);
 
       const bbox: BoundingBox = {
         south: bounds[0][0],
@@ -101,8 +95,6 @@ export function DeliveryMap({
     [selectedPoint]
   );
 
-  const useCluster = currentZoom < MAP_CONSTANTS.CLUSTER_THRESHOLD_ZOOM;
-
   return (
     <div className={styles.mapContainer}>
       {/*<YMaps query={{ apikey: import.meta.env.VITE_YANDEX_MAPS_KEY }}>*/}
@@ -121,49 +113,20 @@ export function DeliveryMap({
         >
           <ZoomControl options={{ position: { right: 12, top: 12 } }} />
 
-          {!warning && points.length > 0 && (
-            useCluster ? (
-              <Clusterer
-                options={{
-                  preset: 'islands#greenClusterIcons',
-                  groupByCoordinates: false,
-                  clusterDisableClickZoom: false,
-                }}
-              >
-                {points.map((point) => (
-                  <Placemark
-                    key={point.code}
-                    geometry={[
-                      point.coordinates.latitude,
-                      point.coordinates.longitude,
-                    ]}
-                    properties={{
-                      hintContent: point.name,
-                      balloonContentHeader: point.name,
-                      balloonContentBody: point.address,
-                    }}
-                    options={getPlacemarkOptions(point)}
-                    onClick={() => onSelectPoint(point)}
-                  />
-                ))}
-              </Clusterer>
-            ) : (
-              points.map((point) => (
-                <Placemark
-                  key={point.code}
-                  geometry={[
-                    point.coordinates.latitude,
-                    point.coordinates.longitude,
-                  ]}
-                  properties={{
-                    hintContent: point.name,
-                  }}
-                  options={getPlacemarkOptions(point)}
-                  onClick={() => onSelectPoint(point)}
-                />
-              ))
-            )
-          )}
+          {!warning && points.length > 0 && points.map((point) => (
+            <Placemark
+              key={point.code}
+              geometry={[
+                point.coordinates.latitude,
+                point.coordinates.longitude,
+              ]}
+              properties={{
+                hintContent: point.name,
+              }}
+              options={getPlacemarkOptions(point)}
+              onClick={() => onSelectPoint(point)}
+            />
+          ))}
         </Map>
       </YMaps>
 
