@@ -42,7 +42,7 @@ class CDEKSettings:
 
         base_url = os.getenv("CDEK_BASE_URL", "https://api.cdek.ru/v2")
         test_url = os.getenv("CDEK_TEST_URL", "https://api.edu.cdek.ru/v2")
-        use_test = _env_bool(os.getenv("CDEK_USE_TEST"), True)
+        use_test = _env_bool(os.getenv("CDEK_USE_TEST"), False)
         sender_city_code = _env_int(os.getenv("CDEK_SENDER_CITY_CODE"), 44)
         sender_address = os.getenv("CDEK_SENDER_ADDRESS", "ул. Складская, 1")
         default_tariff_code = _env_int(os.getenv("CDEK_DEFAULT_TARIFF_CODE"), 136)

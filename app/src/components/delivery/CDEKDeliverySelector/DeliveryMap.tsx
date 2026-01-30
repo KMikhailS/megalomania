@@ -37,7 +37,7 @@ export function DeliveryMap({
         east: bounds[1][1],
       };
 
-      loadPoints(bbox, nextZoom);
+      loadPoints(bbox, Math.floor(nextZoom));
     },
     [loadPoints]
   );
@@ -56,7 +56,7 @@ export function DeliveryMap({
           north: bounds[1][0],
           east: bounds[1][1],
         };
-        loadPoints(bbox, initialZoom);
+        loadPoints(bbox, Math.floor(initialZoom));
       }
 
       map.events.add('boundschange', handleBoundsChange);

@@ -3,7 +3,7 @@ import { fetchCdekDeliveryPoints } from '../../../../api/client';
 import type { BoundingBox, DeliveryPoint } from '../../../../types/cdek';
 
 const MIN_ZOOM_FOR_POINTS = 11;
-const DEBOUNCE_DELAY = 500;
+const DEBOUNCE_DELAY = 400;
 
 interface WarningInfo {
   code: string;
@@ -27,7 +27,6 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
 
   const debounceTimerRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
-  const allPointsRef = useRef<Map<string, DeliveryPoint>>(new Map());
 
   const loadPoints = useCallback(
     (bbox: BoundingBox, zoom: number) => {
@@ -45,7 +44,6 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
         });
         setError(null);
         setIsLoading(false);
-        // Не очищаем points - показываем что было
         return;
       }
 
@@ -67,22 +65,10 @@ export function useDeliveryPoints(): UseDeliveryPointsResult {
 
           if (response.warning) {
             setWarning(response.warning);
-          } else if (response.points && response.points.length > 0) {
-            // Добавляем новые точки к существующим
-            for (const point of response.points) {
-              if (point.code) {
-                allPointsRef.current.set(point.code, point);
-              }
-            }
-            // Фильтруем точки по текущему bbox
-            const visiblePoints = Array.from(allPointsRef.current.values()).filter(
-              (p) =>
-                p.coordinates.latitude >= bbox.south &&
-                p.coordinates.latitude <= bbox.north &&
-                p.coordinates.longitude >= bbox.west &&
-                p.coordinates.longitude <= bbox.east
-            );
-            setPoints(visiblePoints);
+            setPoints([]);
+          } else {
+            // Просто устанавливаем точки из ответа - бэкенд уже отфильтровал по bbox
+            setPoints(response.points || []);
           }
         } catch (err) {
           if (currentRequestId === requestIdRef.current) {
